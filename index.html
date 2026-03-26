@@ -1,54 +1,78 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <style>
-    body { font-family: sans-serif; background: #111; color: white; }
+<style>
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: white;
+}
 
-    .bar {
-      display: flex;
-      width: 400px;
-      height: 25px;
-      background: #333;
-      margin-bottom: 10px;
-    }
+.unit {
+  padding: 10px;
+  margin: 5px;
+  background: #222;
+  cursor: grab;
+}
 
-    .tick {
-      flex: 1;
-      margin: 1px;
-      background: #222;
-    }
+.unit.active {
+  outline: 2px solid yellow;
+}
 
-    .filled { background: red; }
-    .incoming { background: orange; }
+button, input {
+  margin: 3px;
+}
 
-    button, input { margin: 5px; }
-  </style>
+/* Simple modal panel */
+#panel {
+  position: fixed;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #222;
+  padding: 15px;
+  border: 1px solid #555;
+  display: none;
+}
+</style>
 </head>
 
 <body>
 
-<h2>HP System</h2>
+<h2>TTRPG Tracker</h2>
 
-<div id="hpBar" class="bar"></div>
-<p id="hpText"></p>
+<button onclick="addUnit()">+ Add Unit</button>
 
-<button onclick="prevTurn()">⬅ Prev</button>
-<button onclick="nextTurn()">Next ➡</button>
+<div id="units"></div>
 
-<h3>Status Effects</h3>
-<div id="effects"></div>
+<!-- UNIT EDIT PANEL -->
+<div id="panel">
+  <h3 id="panelTitle"></h3>
 
-<h4>Add Effect</h4>
-<input id="ename" placeholder="Name">
-<input id="edmg" type="number" placeholder="Damage">
-<input id="edur" type="number" placeholder="Duration">
-<button onclick="addEffect()">Add</button>
+  Name: <input id="u_name"><br>
+  HP: <input id="u_hp" type="number">
+  / <input id="u_max" type="number"><br>
+
+  <button onclick="saveUnit()">Save</button>
+  <button onclick="closePanel()">Close</button>
+
+  <h4>Status Effects</h4>
+  <div id="effects"></div>
+
+  <h4>Add Effect</h4>
+  <input id="e_name" placeholder="Name">
+  <input id="e_amt" type="number" placeholder="HP">
+  <button onclick="flipSign()">±</button>
+  <input id="e_dur" type="number" placeholder="Turns">
+
+  <button onclick="addEffect()">Add</button>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// 🔑 PASTE YOUR FIREBASE CONFIG HERE
+/* ---------------- FIREBASE ---------------- */
 const firebaseConfig = {
   apiKey: "sidegoons.firebaseapp.com",
   authDomain: "sidegoons",
@@ -59,13 +83,14 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const ref = doc(db, "game", "state");
 
+/* ---------------- STATE ---------------- */
 let state = {
-  maxHp: 100,
-  turn: 0,
-  effects: []
+  units: []
 };
 
-// 🔄 Sync from Firebase
+let selectedUnit = null;
+
+/* ---------------- SYNC ---------------- */
 onSnapshot(ref, (snap) => {
   if (snap.exists()) {
     state = snap.data();
@@ -79,86 +104,174 @@ function save() {
   setDoc(ref, state);
 }
 
-function activeEffects(turn) {
-  return state.effects.filter(e =>
-    turn >= e.start && turn < e.start + e.duration
-  );
-}
+/* ---------------- UNITS ---------------- */
 
-function damageAtTurn(turn) {
-  return activeEffects(turn)
-    .reduce((sum, e) => sum + e.dmg, 0);
-}
-
-function totalDamageUpTo(turn) {
-  let dmg = 0;
-  for (let t = 0; t < turn; t++) {
-    dmg += damageAtTurn(t);
-  }
-  return dmg;
-}
-
-function hpAt(turn) {
-  return state.maxHp - totalDamageUpTo(turn);
-}
+window.addUnit = function() {
+  state.units.push({
+    name: "Unit",
+    hp: 10,
+    maxHp: 10,
+    turn: 0,
+    effects: []
+  });
+  save();
+};
 
 function render() {
-  const hp = hpAt(state.turn);
-  const nextHp = hpAt(state.turn + 1);
+  const container = document.getElementById("units");
+  container.innerHTML = "";
 
-  const bar = document.getElementById("hpBar");
-  bar.innerHTML = "";
-
-  const ticks = 20;
-  const hpPerTick = state.maxHp / ticks;
-
-  for (let i = 0; i < ticks; i++) {
-    const tickHp = i * hpPerTick;
+  state.units.forEach((u, i) => {
     const div = document.createElement("div");
-    div.className = "tick";
+    div.className = "unit";
+    div.draggable = true;
 
-    if (tickHp < hp) div.classList.add("filled");
-    else if (tickHp < nextHp) div.classList.add("incoming");
+    div.innerHTML = `
+      <b>${u.name}</b><br>
+      HP: ${u.hp}/${u.maxHp}<br>
+      Turn: ${u.turn}<br>
+      <button onclick="prevTurn(${i})">⬅</button>
+      <button onclick="nextTurn(${i})">➡</button>
+    `;
 
-    bar.appendChild(div);
-  }
+    // Click = open editor
+    div.onclick = () => openPanel(i);
 
-  document.getElementById("hpText").innerText =
-    `Turn ${state.turn} — HP: ${hp} → ${nextHp}`;
+    // Drag logic
+    div.ondragstart = (e) => {
+      e.dataTransfer.setData("index", i);
+    };
 
-  const effectsDiv = document.getElementById("effects");
-  effectsDiv.innerHTML = "";
+    div.ondragover = (e) => e.preventDefault();
 
-  activeEffects(state.turn).forEach(e => {
-    const left = (e.start + e.duration) - state.turn;
-    effectsDiv.innerHTML +=
-      `<div>${e.name} (${e.dmg}/turn, ${left} turns left)</div>`;
+    div.ondrop = (e) => {
+      const from = e.dataTransfer.getData("index");
+      const to = i;
+
+      const moved = state.units.splice(from, 1)[0];
+      state.units.splice(to, 0, moved);
+
+      save();
+    };
+
+    container.appendChild(div);
   });
 }
 
-window.nextTurn = function() {
-  state.turn++;
+/* ---------------- TURN CONTROL ---------------- */
+
+window.nextTurn = function(i) {
+  const u = state.units[i];
+  u.turn++;
+
+  applyEffects(u);
   save();
 };
 
-window.prevTurn = function() {
-  state.turn = Math.max(0, state.turn - 1);
+window.prevTurn = function(i) {
+  const u = state.units[i];
+  u.turn = Math.max(0, u.turn - 1);
+
+  // NOTE: does NOT reverse HP (simple version)
   save();
 };
 
+/* ---------------- EFFECT SYSTEM ---------------- */
+
+/*
+Each effect:
+{
+  name,
+  amount (positive or negative HP per turn),
+  duration,
+  startTurn
+}
+*/
+
+function applyEffects(unit) {
+  unit.effects.forEach(e => {
+    if (unit.turn >= e.start && unit.turn < e.start + e.duration) {
+      unit.hp += e.amount;
+    }
+  });
+}
+
+/* ---------------- PANEL ---------------- */
+
+function openPanel(i) {
+  selectedUnit = i;
+  const u = state.units[i];
+
+  document.getElementById("panel").style.display = "block";
+  document.getElementById("panelTitle").innerText = u.name;
+
+  document.getElementById("u_name").value = u.name;
+  document.getElementById("u_hp").value = u.hp;
+  document.getElementById("u_max").value = u.maxHp;
+
+  renderEffects();
+}
+
+function closePanel() {
+  document.getElementById("panel").style.display = "none";
+}
+
+/* Save unit edits */
+window.saveUnit = function() {
+  const u = state.units[selectedUnit];
+
+  u.name = document.getElementById("u_name").value;
+  u.hp = parseInt(document.getElementById("u_hp").value);
+  u.maxHp = parseInt(document.getElementById("u_max").value);
+
+  save();
+  render();
+};
+
+/* ---------------- EFFECT UI ---------------- */
+
+function renderEffects() {
+  const u = state.units[selectedUnit];
+  const div = document.getElementById("effects");
+  div.innerHTML = "";
+
+  u.effects.forEach(e => {
+    const left = (e.start + e.duration) - u.turn;
+
+    div.innerHTML += `
+      <div>
+        ${e.name} (${e.amount}/turn, ${left} turns)
+      </div>
+    `;
+  });
+}
+
+/* Toggle positive/negative */
+window.flipSign = function() {
+  const input = document.getElementById("e_amt");
+  input.value = -parseInt(input.value || 0);
+};
+
+/* Add new effect */
 window.addEffect = function() {
-  const name = document.getElementById("ename").value;
-  const dmg = parseInt(document.getElementById("edmg").value);
-  const dur = parseInt(document.getElementById("edur").value);
+  const u = state.units[selectedUnit];
 
-  state.effects.push({
+  const name = document.getElementById("e_name").value;
+  const amt = parseInt(document.getElementById("e_amt").value);
+  const dur = parseInt(document.getElementById("e_dur").value);
+
+  u.effects.push({
     name,
-    dmg,
+    amount: amt,
     duration: dur,
-    start: state.turn
+    start: u.turn,
+
+    // 🔮 FUTURE: action-based system placeholder
+    actions: 0
   });
 
   save();
+  renderEffects();
 };
 </script>
 
