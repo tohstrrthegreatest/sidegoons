@@ -9,30 +9,33 @@ body {
 }
 
 .unit {
-  padding: 10px;
+  background: #222;
   margin: 5px;
-  background: #222;
-  cursor: grab;
+  padding: 10px;
+  cursor: pointer;
 }
 
-.unit.active {
-  outline: 2px solid yellow;
-}
-
-button, input {
-  margin: 3px;
-}
-
-/* Simple modal panel */
-#panel {
-  position: fixed;
-  top: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #222;
-  padding: 15px;
-  border: 1px solid #555;
+.panel {
+  background: #1a1a1a;
+  padding: 10px;
+  margin-top: 5px;
   display: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+input {
+  width: 60px;
+}
+
+/* Turn box */
+.turnBox {
+  width: 40px;
+  text-align: center;
 }
 </style>
 </head>
@@ -40,33 +43,9 @@ button, input {
 <body>
 
 <h2>TTRPG Tracker</h2>
-
 <button onclick="addUnit()">+ Add Unit</button>
 
 <div id="units"></div>
-
-<!-- UNIT EDIT PANEL -->
-<div id="panel">
-  <h3 id="panelTitle"></h3>
-
-  Name: <input id="u_name"><br>
-  HP: <input id="u_hp" type="number">
-  / <input id="u_max" type="number"><br>
-
-  <button onclick="saveUnit()">Save</button>
-  <button onclick="closePanel()">Close</button>
-
-  <h4>Status Effects</h4>
-  <div id="effects"></div>
-
-  <h4>Add Effect</h4>
-  <input id="e_name" placeholder="Name">
-  <input id="e_amt" type="number" placeholder="HP">
-  <button onclick="flipSign()">±</button>
-  <input id="e_dur" type="number" placeholder="Turns">
-
-  <button onclick="addEffect()">Add</button>
-</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -88,8 +67,6 @@ let state = {
   units: []
 };
 
-let selectedUnit = null;
-
 /* ---------------- SYNC ---------------- */
 onSnapshot(ref, (snap) => {
   if (snap.exists()) {
@@ -104,175 +81,198 @@ function save() {
   setDoc(ref, state);
 }
 
-/* ---------------- UNITS ---------------- */
-
+/* ---------------- UNIT CREATION ---------------- */
 window.addUnit = function() {
   state.units.push({
     name: "Unit",
     hp: 10,
     maxHp: 10,
     turn: 0,
-    effects: []
+    history: [], // 🔁 stores snapshots for rewind
+    effects: [],
+    open: false
   });
   save();
 };
 
+/* ---------------- RENDER ---------------- */
 function render() {
   const container = document.getElementById("units");
   container.innerHTML = "";
 
   state.units.forEach((u, i) => {
+
     const div = document.createElement("div");
     div.className = "unit";
-    div.draggable = true;
 
+    /* HEADER */
     div.innerHTML = `
-      <b>${u.name}</b><br>
-      HP: ${u.hp}/${u.maxHp}<br>
-      Turn: ${u.turn}<br>
-      <button onclick="prevTurn(${i})">⬅</button>
-      <button onclick="nextTurn(${i})">➡</button>
+      <div class="row">
+        <b>${u.name}</b>
+        HP: ${u.hp}/${u.maxHp}
+
+        <!-- TURN CONTROL -->
+        <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
+
+        <input class="turnBox" value="${u.turn}"
+          onclick="event.stopPropagation();"
+          onchange="setTurn(${i}, this.value)">
+
+        <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
+      </div>
     `;
 
-    // Click = open editor
-    div.onclick = () => openPanel(i);
+    /* PANEL */
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    if (u.open) panel.style.display = "block";
 
-    // Drag logic
-    div.ondragstart = (e) => {
-      e.dataTransfer.setData("index", i);
-    };
+    panel.innerHTML = `
+      Name: <input value="${u.name}" onchange="setName(${i}, this.value)"><br>
+      HP: <input type="number" value="${u.hp}" onchange="setHP(${i}, this.value)">
+      / <input type="number" value="${u.maxHp}" onchange="setMaxHP(${i}, this.value)">
 
-    div.ondragover = (e) => e.preventDefault();
+      <h4>Effects</h4>
+      <div id="effects-${i}"></div>
 
-    div.ondrop = (e) => {
-      const from = e.dataTransfer.getData("index");
-      const to = i;
+      <input id="ename-${i}" placeholder="Name">
+      <input id="eval-${i}" type="number" placeholder="HP">
 
-      const moved = state.units.splice(from, 1)[0];
-      state.units.splice(to, 0, moved);
+      <!-- SIGN TOGGLE -->
+      <button onclick="flipSign(${i})">±</button>
 
+      <input id="edur-${i}" type="number" placeholder="Turns">
+
+      <button onclick="addEffect(${i})">Add</button>
+    `;
+
+    /* Toggle panel */
+    div.onclick = () => {
+      u.open = !u.open;
       save();
     };
 
+    div.appendChild(panel);
     container.appendChild(div);
+
+    renderEffects(i);
   });
 }
 
-/* ---------------- TURN CONTROL ---------------- */
+/* ---------------- TURN SYSTEM (WITH TRUE REWIND) ---------------- */
+
+/*
+We store a snapshot BEFORE applying a turn change.
+That allows exact rewind.
+*/
+
+function snapshot(u) {
+  u.history.push({
+    hp: u.hp,
+    turn: u.turn
+  });
+}
 
 window.nextTurn = function(i) {
   const u = state.units[i];
+
+  snapshot(u); // save before change
   u.turn++;
 
   applyEffects(u);
+
   save();
 };
 
 window.prevTurn = function(i) {
   const u = state.units[i];
-  u.turn = Math.max(0, u.turn - 1);
 
-  // NOTE: does NOT reverse HP (simple version)
+  if (u.history.length > 0) {
+    const prev = u.history.pop();
+    u.hp = prev.hp;
+    u.turn = prev.turn;
+  }
+
   save();
 };
 
-/* ---------------- EFFECT SYSTEM ---------------- */
+window.setTurn = function(i, val) {
+  const u = state.units[i];
 
-/*
-Each effect:
-{
-  name,
-  amount (positive or negative HP per turn),
-  duration,
-  startTurn
-}
-*/
+  snapshot(u);
+  u.turn = parseInt(val) || 0;
 
-function applyEffects(unit) {
-  unit.effects.forEach(e => {
-    if (unit.turn >= e.start && unit.turn < e.start + e.duration) {
-      unit.hp += e.amount;
+  save();
+};
+
+/* ---------------- EFFECTS ---------------- */
+
+function applyEffects(u) {
+  u.effects.forEach(e => {
+    if (u.turn >= e.start && u.turn < e.start + e.duration) {
+      u.hp += e.amount;
     }
   });
 }
 
-/* ---------------- PANEL ---------------- */
-
-function openPanel(i) {
-  selectedUnit = i;
+window.addEffect = function(i) {
   const u = state.units[i];
 
-  document.getElementById("panel").style.display = "block";
-  document.getElementById("panelTitle").innerText = u.name;
+  const name = document.getElementById(`ename-${i}`).value;
+  const val = parseInt(document.getElementById(`eval-${i}`).value);
+  const dur = parseInt(document.getElementById(`edur-${i}`).value);
 
-  document.getElementById("u_name").value = u.name;
-  document.getElementById("u_hp").value = u.hp;
-  document.getElementById("u_max").value = u.maxHp;
-
-  renderEffects();
-}
-
-function closePanel() {
-  document.getElementById("panel").style.display = "none";
-}
-
-/* Save unit edits */
-window.saveUnit = function() {
-  const u = state.units[selectedUnit];
-
-  u.name = document.getElementById("u_name").value;
-  u.hp = parseInt(document.getElementById("u_hp").value);
-  u.maxHp = parseInt(document.getElementById("u_max").value);
+  u.effects.push({
+    name,
+    amount: val,
+    duration: dur,
+    start: u.turn
+  });
 
   save();
-  render();
 };
 
-/* ---------------- EFFECT UI ---------------- */
+/* SIGN TOGGLE */
+window.flipSign = function(i) {
+  const input = document.getElementById(`eval-${i}`);
+  input.value = -parseInt(input.value || 0);
+};
 
-function renderEffects() {
-  const u = state.units[selectedUnit];
-  const div = document.getElementById("effects");
+/* ---------------- EFFECT RENDER ---------------- */
+
+function renderEffects(i) {
+  const u = state.units[i];
+  const div = document.getElementById(`effects-${i}`);
+  if (!div) return;
+
   div.innerHTML = "";
 
   u.effects.forEach(e => {
     const left = (e.start + e.duration) - u.turn;
 
     div.innerHTML += `
-      <div>
-        ${e.name} (${e.amount}/turn, ${left} turns)
-      </div>
+      <div>${e.name} (${e.amount}/turn, ${left} turns)</div>
     `;
   });
 }
 
-/* Toggle positive/negative */
-window.flipSign = function() {
-  const input = document.getElementById("e_amt");
-  input.value = -parseInt(input.value || 0);
-};
+/* ---------------- BASIC EDITS ---------------- */
 
-/* Add new effect */
-window.addEffect = function() {
-  const u = state.units[selectedUnit];
-
-  const name = document.getElementById("e_name").value;
-  const amt = parseInt(document.getElementById("e_amt").value);
-  const dur = parseInt(document.getElementById("e_dur").value);
-
-  u.effects.push({
-    name,
-    amount: amt,
-    duration: dur,
-    start: u.turn,
-
-    // 🔮 FUTURE: action-based system placeholder
-    actions: 0
-  });
-
+window.setName = (i, val) => {
+  state.units[i].name = val;
   save();
-  renderEffects();
 };
+
+window.setHP = (i, val) => {
+  state.units[i].hp = parseInt(val);
+  save();
+};
+
+window.setMaxHP = (i, val) => {
+  state.units[i].maxHp = parseInt(val);
+  save();
+};
+
 </script>
 
 </body>
