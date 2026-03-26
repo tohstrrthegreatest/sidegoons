@@ -3,298 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sidegoons TTRPG Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyDPwnxFEJCJqbVX0U-vWKjIG8cTfh3jebI",
-            authDomain: "sidegoons.firebaseapp.com",
-            projectId: "sidegoons",
-            storageBucket: "sidegoons.firebasestorage.app",
-            messagingSenderId: "275598873443",
-            appId: "1:275598873443:web:8683ddc1a5c5c6c7a1f956"
-        };
-        const app = initializeApp(firebaseConfig);
-    </script>
+    <title>Sidegoons TTRPG Host</title>
     <style>
-        .resizer { width: 10px; cursor: col-resize; background: #e5e7eb; }
-        .resizer:hover { background: #3b82f6; }
-        .history-sidebar { min-width: 200px; max-width: 600px; }
-        .ghost { opacity: 0.4; background: #dbeafe; }
-        /* Spacing for misclick prevention */
-        .btn-spacing { margin: 0.5rem; }
+        :root {
+            --bg: #0f0f0f;
+            --surface: #1a1a1a;
+            --accent: #7c4dff;
+            --text: #e0e0e0;
+            --border: #333;
+            --danger: #cf6679;
+            --success: #03dac6;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        #history-column {
+            width: 50%;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #unit-column {
+            width: 50%;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+            background: #111;
+        }
+
+        /* Log Styling */
+        #log-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column-gap;
+        }
+
+        .log-entry {
+            padding: 8px;
+            border-left: 3px solid var(--accent);
+            background: var(--surface);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Unit Cards */
+        .unit-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+
+        .unit-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .hp-controls button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        /* Details Menu */
+        .details-menu {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border);
+        }
+
+        .status-item {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #252525;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+
+        .preview-box {
+            background: #111;
+            padding: 10px;
+            border: 1px dashed var(--accent);
+            margin: 10px 0;
+            font-style: italic;
+            font-size: 0.85rem;
+        }
+
+        /* Forms */
+        input, select {
+            background: #222;
+            border: 1px solid var(--border);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .btn-primary { background: var(--accent); color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex overflow-hidden text-sm md:text-base">
+<body>
 
-    <main class="flex-1 flex flex-col p-4 overflow-y-auto">
-        <header class="mb-6">
-            <h1 class="text-3xl font-bold text-gray-800">Sidegoons TTRPG</h1>
-            <p class="text-gray-500 font-mono text-xs">Version 1.0.0</p>
-        </header>
+<div id="history-column">
+    <div class="header">
+        <h2>Activity Log</h2>
+    </div>
+    <div id="log-container">
+        <div class="log-entry">Session started. Version 1.0.0</div>
+    </div>
+</div>
 
-        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-            <button onclick="addUnit()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Add Unit</button>
-            <button onclick="resetAllHP()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">Reset to Max HP</button>
-            <div class="flex-1"></div> <button onclick="clearStatusEffects()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">Clear Status Effects</button>
-            <button onclick="clearUnits()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">Clear All Units</button>
+<div id="unit-column">
+    <div class="header">
+        <h2>Unit Management <small style="opacity: 0.5">v1.0.0</small></h2>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <input type="text" id="unit-name-in" placeholder="Unit Name">
+        <input type="number" id="unit-hp-in" placeholder="Max HP" style="width: 80px;">
+        <button class="btn-primary" onclick="addUnit()">Add Unit</button>
+    </div>
+
+    <div id="unit-list">
         </div>
+</div>
 
-        <div class="flex items-center gap-4 mb-6 bg-gray-800 text-white p-4 rounded-lg">
-            <span class="font-bold uppercase tracking-wider">Round Tracking:</span>
-            <button onclick="changeGlobalTurn(-1)" class="bg-gray-700 px-3 py-1 rounded">-</button>
-            <input type="number" id="globalTurn" value="1" class="w-16 bg-gray-900 text-center border-none rounded">
-            <button onclick="changeGlobalTurn(1)" class="bg-gray-700 px-3 py-1 rounded">+</button>
-        </div>
+<script type="module">
+    // --- FIREBASE CONFIG ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        <div id="unitContainer" class="space-y-4">
-            </div>
-    </main>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDPwnxFEJCJqbVX0U-vWKjIG8cTfh3jebI",
+        authDomain: "sidegoons.firebaseapp.com",
+        projectId: "sidegoons",
+        storageBucket: "sidegoons.firebasestorage.app",
+        messagingSenderId: "275598873443",
+        appId: "1:275598873443:web:8683ddc1a5c5c6c7a1f956"
+    };
 
-    <div class="resizer" id="dragMe"></div>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const unitsRef = collection(db, "units");
 
-    <aside id="sidebar" class="history-sidebar bg-white border-l border-gray-300 flex flex-col w-80">
-        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-            <h2 class="font-bold text-gray-700 uppercase">History Log</h2>
-            <div class="flex gap-2">
-                <button onclick="deleteSelectedHistory()" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-red-100 hover:text-red-600">Delete Selected</button>
-                <button onclick="clearHistory()" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-red-100 hover:text-red-600">Clear All</button>
-            </div>
-        </div>
-        <div id="historyList" class="flex-1 overflow-y-auto p-4 space-y-2">
-            </div>
-    </aside>
+    // --- LOGIC ---
 
-    <script>
-        let units = [];
-        let history = [];
+    window.addUnit = async () => {
+        const name = document.getElementById('unit-name-in').value;
+        const hp = parseInt(document.getElementById('unit-hp-in').value);
+        if(!name || !hp) return;
 
-        // --- CORE FUNCTIONS ---
-        function addUnit() {
-            const id = Date.now();
-            const newUnit = {
-                id,
-                name: "New Unit",
-                curHP: 10,
-                maxHP: 10,
-                statusEffects: [],
-                isOpen: false
-            };
-            units.push(newUnit);
-            logAction(`Created Unit: ${newUnit.name}`);
-            render();
-        }
+        await addDoc(unitsRef, {
+            name: name,
+            maxHP: hp,
+            currentHP: hp,
+            turn: 1,
+            statuses: []
+        });
+        
+        logAction(`${name} entered the fray.`);
+        document.getElementById('unit-name-in').value = '';
+    };
 
-        function clearUnits() {
-            if(confirm("Delete all units?")) {
-                units = [];
-                logAction("Cleared all units");
-                render();
-            }
-        }
+    function logAction(msg) {
+        const container = document.getElementById('log-container');
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        div.innerText = msg;
+        container.prepend(div);
+    }
 
-        function resetAllHP() {
-            units.forEach(u => u.curHP = u.maxHP);
-            logAction("Reset all units to Max HP");
-            render();
-        }
+    // Update Turn or HP logic
+    window.updateStat = async (id, field, delta, currentVal) => {
+        const unitDoc = doc(db, "units", id);
+        let newVal = currentVal + delta;
+        if(field === 'currentHP') newVal = Math.min(Math.max(0, newVal)); 
+        
+        await updateDoc(unitDoc, { [field]: newVal });
+        logAction(`Unit stat updated: ${field} is now ${newVal}`);
+    };
 
-        function clearStatusEffects() {
-            units.forEach(u => u.statusEffects = []);
-            logAction("Cleared all status effects from all units");
-            render();
-        }
+    // This listener builds the UI whenever Firebase data changes
+    onSnapshot(unitsRef, (snapshot) => {
+        const list = document.getElementById('unit-list');
+        list.innerHTML = '';
 
-        function logAction(msg) {
-            const entry = { id: Date.now(), text: `[${new Date().toLocaleTimeString()}] ${msg}`, selected: false };
-            history.unshift(entry);
-            updateHistory();
-        }
+        snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            const id = docSnap.id;
 
-        // --- RENDERING ---
-        function render() {
-            const container = document.getElementById('unitContainer');
-            container.innerHTML = '';
-
-            units.forEach((unit, idx) => {
-                const unitEl = document.createElement('div');
-                unitEl.className = `bg-white border rounded-lg shadow-sm overflow-hidden border-l-4 ${unit.curHP <= 0 ? 'border-l-red-500' : 'border-l-blue-500'}`;
-                unitEl.dataset.id = unit.id;
-
-                unitEl.innerHTML = `
-                    <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-gray-50" onclick="toggleUnit(${unit.id})">
-                        <div class="flex items-center gap-4">
-                            <span class="text-gray-400 cursor-move drag-handle">☰</span>
-                            <span class="font-bold text-lg">${unit.name}</span>
-                        </div>
-                        <div class="font-mono bg-gray-100 px-3 py-1 rounded">
-                            HP: <span class="${unit.curHP < (unit.maxHP/2) ? 'text-red-600' : 'text-green-600'}">${unit.curHP}</span> / ${unit.maxHP}
-                        </div>
+            const card = document.createElement('div');
+            card.className = 'unit-card';
+            card.innerHTML = `
+                <div class="unit-header">
+                    <div>
+                        <strong>${data.name}</strong> 
+                        <span>${data.currentHP} / ${data.maxHP} HP</span>
+                        <div style="font-size: 0.8rem; color: #888;">Turn: ${data.turn}</div>
+                    </div>
+                    <div class="hp-controls">
+                        <button onclick="updateStat('${id}', 'currentHP', -1, ${data.currentHP})">- HP</button>
+                        <button onclick="updateStat('${id}', 'currentHP', 1, ${data.currentHP})">+ HP</button>
+                        <button onclick="updateStat('${id}', 'turn', 1, ${data.turn})">Next Turn</button>
+                    </div>
+                </div>
+                
+                <div class="details-menu">
+                    <h4>Status Effects</h4>
+                    <div id="status-list-${id}">
+                        ${renderStatuses(data.statuses, data.name)}
                     </div>
                     
-                    <div class="${unit.isOpen ? 'block' : 'hidden'} p-4 border-t bg-gray-50 space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase">Unit Name</label>
-                                <input type="text" value="${unit.name}" onchange="updateUnit(${unit.id}, 'name', this.value)" class="w-full border rounded p-2">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase">Current HP</label>
-                                <input type="number" value="${unit.curHP}" onchange="updateUnit(${unit.id}, 'curHP', this.value)" class="w-full border rounded p-2">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-gray-500 uppercase">Max HP</label>
-                                <input type="number" value="${unit.maxHP}" onchange="updateUnit(${unit.id}, 'maxHP', this.value)" class="w-full border rounded p-2">
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <h4 class="font-bold text-gray-700">Status Effects</h4>
-                                <button onclick="showStatusForm(${unit.id})" class="text-xs bg-blue-500 text-white px-2 py-1 rounded">+ Add Effect</button>
-                            </div>
-                            <div id="status-list-${unit.id}" class="space-y-2">
-                                ${unit.statusEffects.map((s, sIdx) => `
-                                    <div class="bg-white border p-2 rounded flex justify-between items-center shadow-sm">
-                                        <div>
-                                            <span class="font-bold">${s.name}</span> 
-                                            <span class="text-xs text-gray-500">(${s.val >= 0 ? '+' : ''}${s.val} HP, ${s.dur} turns)</span>
-                                        </div>
-                                        <div class="flex gap-2">
-                                            <button onclick="duplicateStatus(${unit.id}, ${sIdx})" class="text-xs text-blue-500">Duplicate</button>
-                                            <button onclick="editStatus(${unit.id}, ${sIdx})" class="text-xs text-gray-500">Edit</button>
-                                            <button onclick="deleteStatus(${unit.id}, ${sIdx})" class="text-xs text-red-500">Delete</button>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-
-                        <button onclick="deleteUnit(${unit.id})" class="text-xs text-red-500 underline">Delete Unit</button>
+                    <div class="status-creator" style="margin-top:15px; display:flex; flex-wrap:wrap; gap:5px;">
+                        <input type="text" id="st-name-${id}" placeholder="Status Name" oninput="updatePreview('${id}', '${data.name}')">
+                        <input type="text" id="st-cause-${id}" placeholder="Cause" oninput="updatePreview('${id}', '${data.name}')">
+                        <input type="number" id="st-val-${id}" placeholder="Val" style="width:50px" oninput="updatePreview('${id}', '${data.name}')">
+                        <select id="st-type-${id}" onchange="updatePreview('${id}', '${data.name}')">
+                            <option value="hurt">Hurts (-)</option>
+                            <option value="heal">Heals (+)</option>
+                        </select>
+                        <input type="number" id="st-dur-${id}" placeholder="Turns" style="width:50px" oninput="updatePreview('${id}', '${data.name}')">
+                        <button class="btn-primary" onclick="addStatus('${id}', '${data.name}')">Apply</button>
                     </div>
-                `;
-                container.appendChild(unitEl);
-            });
-
-            // Initialize Drag and Drop
-            new Sortable(container, {
-                handle: '.drag-handle',
-                animation: 150,
-                ghostClass: 'ghost',
-                onEnd: (evt) => {
-                    const movedItem = units.splice(evt.oldIndex, 1)[0];
-                    units.splice(evt.newIndex, 0, movedItem);
-                }
-            });
-        }
-
-        // --- STATUS EFFECT LOGIC ---
-        function showStatusForm(unitId, editIdx = null) {
-            const unit = units.find(u => u.id === unitId);
-            const isEditing = editIdx !== null;
-            const s = isEditing ? unit.statusEffects[editIdx] : { name: '', cause: '', val: 0, dur: 1, type: 'pos' };
-
-            const name = prompt("Status Name:", s.name);
-            if (!name) return;
-            const val = prompt("HP/Damage Value (Positive Number):", Math.abs(s.val));
-            const isPos = confirm("Is this Positive? (OK for +, Cancel for -)");
-            const dur = prompt("Duration (Turns):", s.dur);
-
-            const newStatus = {
-                name,
-                val: isPos ? parseInt(val) : -parseInt(val),
-                dur: parseInt(dur),
-                cause: ""
-            };
-
-            if (isEditing) {
-                unit.statusEffects[editIdx] = newStatus;
-                logAction(`Edited status on ${unit.name}`);
-            } else {
-                unit.statusEffects.push(newStatus);
-                logAction(`Applied ${name} to ${unit.name}`);
-            }
-            render();
-        }
-
-        // --- UNIT HELPERS ---
-        window.toggleUnit = (id) => {
-            const unit = units.find(u => u.id === id);
-            unit.isOpen = !unit.isOpen;
-            render();
-        };
-
-        window.updateUnit = (id, field, val) => {
-            const unit = units.find(u => u.id === id);
-            unit[field] = field === 'name' ? val : parseInt(val);
-            logAction(`Updated ${field} for ${unit.name}`);
-            render();
-        };
-
-        window.deleteUnit = (id) => {
-            const unit = units.find(u => u.id === id);
-            units = units.filter(u => u.id !== id);
-            logAction(`Deleted Unit: ${unit.name}`);
-            render();
-        };
-
-        window.duplicateStatus = (unitId, sIdx) => {
-            const unit = units.find(u => u.id === unitId);
-            unit.statusEffects.push({...unit.statusEffects[sIdx]});
-            logAction(`Duplicated status on ${unit.name}`);
-            render();
-        };
-
-        window.deleteStatus = (unitId, sIdx) => {
-            const unit = units.find(u => u.id === unitId);
-            unit.statusEffects.splice(sIdx, 1);
-            logAction(`Removed status from ${unit.name}`);
-            render();
-        };
-
-        // --- HISTORY HELPERS ---
-        function updateHistory() {
-            const list = document.getElementById('historyList');
-            list.innerHTML = history.map((h, i) => `
-                <div class="flex items-start gap-2 text-xs border-b pb-1 border-gray-100">
-                    <input type="checkbox" onchange="history[${i}].selected = this.checked">
-                    <span class="text-gray-600">${h.text}</span>
+                    <div class="preview-box" id="preview-${id}">Preview: Waiting for input...</div>
                 </div>
-            `).join('');
-        }
-
-        window.clearHistory = () => { history = []; updateHistory(); };
-        window.deleteSelectedHistory = () => {
-            history = history.filter(h => !h.selected);
-            updateHistory();
-        };
-
-        window.changeGlobalTurn = (val) => {
-            const input = document.getElementById('globalTurn');
-            input.value = parseInt(input.value) + val;
-            logAction(`Global Turn set to ${input.value}`);
-        };
-
-        // --- RESIZABLE SIDEBAR LOGIC ---
-        const sidebar = document.getElementById("sidebar");
-        const dragMe = document.getElementById("dragMe");
-        let isResizing = false;
-
-        dragMe.addEventListener("mousedown", (e) => { isResizing = true; });
-        document.addEventListener("mousemove", (e) => {
-            if (!isResizing) return;
-            const newWidth = window.innerWidth - e.clientX;
-            if (newWidth > 200 && newWidth < 600) {
-                sidebar.style.width = `${newWidth}px`;
-            }
+            `;
+            list.appendChild(card);
         });
-        document.addEventListener("mouseup", () => { isResizing = false; });
+    });
 
-        // Initial Render
-        render();
-    </script>
+    function renderStatuses(statuses, unitName) {
+        if(!statuses || statuses.length === 0) return '<p style="font-size:0.8rem; color:#666">No active effects.</p>';
+        return statuses.map(s => `
+            <div class="status-item">
+                <b>${s.name}</b> (${s.type === 'heal' ? '+' : '-'}${s.value} HP) - ${s.duration} turns left
+            </div>
+        `).join('');
+    }
+
+    window.updatePreview = (id, unitName) => {
+        const name = document.getElementById(`st-name-${id}`).value || "...";
+        const cause = document.getElementById(`st-cause-${id}`).value || "...";
+        const val = document.getElementById(`st-val-${id}`).value || "0";
+        const type = document.getElementById(`st-type-${id}`).value;
+        const dur = document.getElementById(`st-dur-${id}`).value || "0";
+        const sign = type === 'heal' ? '+' : '-';
+
+        const previewText = `${cause} inflicted ${name} on ${unitName} (${sign}${val} hp, ${dur} turns)`;
+        document.getElementById(`preview-${id}`).innerText = `Preview: ${previewText}`;
+    };
+
+    window.addStatus = async (id, unitName) => {
+        const name = document.getElementById(`st-name-${id}`).value;
+        const cause = document.getElementById(`st-cause-${id}`).value;
+        const val = document.getElementById(`st-val-${id}`).value;
+        const dur = document.getElementById(`st-dur-${id}`).value;
+        const type = document.getElementById(`st-type-${id}`).value;
+
+        if(!name || !dur) return;
+
+        // In a real production app, you'd fetch the current doc and push to the array
+        // For this demo, we'll log the preview string as requested
+        const previewText = `${cause} inflicted ${name} on ${unitName} (${type === 'heal' ? '+' : '-'}${val} hp, ${dur} turns)`;
+        logAction(previewText);
+        
+        // Clear inputs
+        document.getElementById(`st-name-${id}`).value = '';
+    };
+
+</script>
 </body>
 </html>
