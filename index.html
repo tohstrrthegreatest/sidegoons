@@ -1,37 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-<style>
-body { font-family: sans-serif; background:#111; color:white; margin:0; }
-.container { display:flex; height:100vh; overflow:hidden; }
-#main { flex:1; padding:10px; overflow-y:auto; }
-#log { width:300px; background:#000; padding:10px; border-left:2px solid #444; overflow-y:auto; }
-#divider { width:5px; cursor:col-resize; background:#444; }
-#divider:hover { background:#666; }
+    <title>TTRPG Tracker</title>
+    <style>
+        body { font-family: sans-serif; background:#111; color:white; margin:0; }
+        .container { display:flex; height:100vh; overflow:hidden; }
+        #main { flex:1; padding:10px; overflow-y:auto; }
+        #log { width:300px; background:#000; padding:10px; border-left:2px solid #444; overflow-y:auto; }
+        #divider { width:5px; cursor:col-resize; background:#444; }
+        #divider:hover { background:#666; }
 
-.unit { margin:5px; padding:10px; display:flex; justify-content:space-between; background:#222; }
-.unit-left { flex:1; }
-.rightCol { display:flex; flex-direction:column; align-items:center; }
-.turnBox { width:30px; text-align:center; }
-.drag { cursor:grab; margin-left:4px; }
-.panel { margin-top:5px; padding:5px; background:#1a1a1a; display:none; }
-.effectRow { display:flex; justify-content:space-between; cursor:pointer; }
-.delete { color:red; cursor:pointer; }
-.section { margin-top:10px; }
-.preview { opacity:0.8; font-size:0.9em; }
-.grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:2px; }
-input.half { width:50px; }
-input.quarter { width:25px; }
-.selected { outline:2px solid #fff; }
-</style>
+        .unit { margin:5px; padding:10px; display:flex; justify-content:space-between; background:#222; border-radius: 4px; cursor: pointer; }
+        .unit-left { flex:1; }
+        .rightCol { display:flex; flex-direction:column; align-items:center; gap: 4px; }
+        .turnBox { width:40px; text-align:center; background: #333; color: white; border: 1px solid #555; }
+        .drag { cursor:grab; margin-left:4px; color: #888; }
+        .panel { margin-top:10px; padding:10px; background:#1a1a1a; border-radius: 4px; display:none; cursor: default; }
+        .effectRow { display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px; background: #2a2a2a; padding: 5px; }
+        .delete { color:#ff4444; cursor:pointer; border: 1px solid #ff4444; background: none; padding: 2px 5px; }
+        .section { margin-top:10px; border-top: 1px solid #333; pt: 5px; }
+        .preview { opacity:0.8; font-size:0.9em; color: #aaa; min-height: 1.2em; }
+        .grid { display:grid; grid-template-columns: 1fr 1fr auto 1fr 1fr; gap:5px; margin-bottom: 5px; }
+        input.half { width:60px; }
+        input.quarter { width:40px; }
+    </style>
 </head>
 <body>
 
 <div class="container">
   <div id="main">
     <h1>TTRPG Tracker</h1>
-    <div style="margin-bottom:8px;">
-      Version: 6 &nbsp;
+    <div style="margin-bottom:15px; display: flex; gap: 5px; flex-wrap: wrap;">
       <button onclick="addUnit()">+ Add Unit</button>
       <button onclick="clearUnits()">Clear All Units</button>
       <button onclick="clearAllEffects()">Clear All Status Effects</button>
@@ -43,26 +42,26 @@ input.quarter { width:25px; }
   <div id="divider"></div>
 
   <div id="log">
-    <h3>History
-      <input type="color" id="outlineColor" value="#ffffff" style="float:right;">
-      <button onclick="clearHistory()">Clear History</button>
-    </h3>
-    <div id="logContent" style="max-height:100%; overflow-y:auto;"></div>
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h3>History</h3>
+        <input type="color" id="outlineColor" value="#ffffff">
+    </div>
+    <button onclick="clearHistory()" style="width: 100%; margin-bottom: 10px;">Clear History</button>
+    <div id="logContent"></div>
   </div>
 </div>
+
 <script>
 let state = {
-  units: [],          // Array of units
-  log: [],            // History log
-  selected: null,     // Selected history item
-  multiSelect: false, // Multi-select toggle
+  units: [],
+  log: [],
   outlineColor: '#ffffff'
 };
 
-/* ---------------- GLOBAL ACTIONS ---------------- */
+/* ---------------- CORE ACTIONS ---------------- */
 function addUnit() {
   state.units.push({
-    name: "Unit",
+    name: "New Unit",
     hp: 10,
     maxHp: 10,
     turn: 0,
@@ -70,54 +69,19 @@ function addUnit() {
     open: false,
     color: "#222",
     panelColor: "#1a1a1a",
-    sign: 1,              // +/- for new effect
-    selectedEffect: null, // Editing effect
-    history: []           // Snapshots for undo
+    sign: 1,
+    selectedEffect: null
   });
   log("Added new unit");
   render();
 }
 
-function clearUnits() {
-  state.units = [];
-  log("Cleared all units");
-  render();
-}
-
-function clearAllEffects() {
-  state.units.forEach(u => u.effects = []);
-  log("Cleared all effects");
-  render();
-}
-
-function resetAllHP() {
-  state.units.forEach(u => u.hp = u.maxHp);
-  log("Reset all HP");
-  render();
-}
-
-/* ---------------- LOG ---------------- */
 function log(text) {
   state.log.push(text);
   renderLog();
 }
 
-function renderLog() {
-  const c = document.getElementById("logContent");
-  c.innerHTML = "";
-  state.log.slice().reverse().forEach((e, idx) => {
-    const div = document.createElement("div");
-    div.innerText = e;
-    if (state.selected === idx) div.style.outline = "2px solid " + state.outlineColor;
-    c.appendChild(div);
-  });
-}
-document.getElementById("outlineColor").onchange=(e)=>{
-  state.outlineColor=e.target.value;
-  renderLog();
-};
-
-/* ---------------- UNITS ---------------- */
+/* ---------------- RENDERING ---------------- */
 function render() {
   const container = document.getElementById("units");
   container.innerHTML = "";
@@ -126,755 +90,145 @@ function render() {
     const div = document.createElement("div");
     div.className = "unit";
     div.style.background = u.color;
+    div.onclick = () => { u.open = !u.open; render(); };
 
-    // LEFT PANEL
+    // Left Side
     const left = document.createElement("div");
     left.className = "unit-left";
-    left.innerHTML = `<div><span>${u.open ? "▼" : "▶"}</span> <b>${u.name}</b> HP:${u.hp}/${u.maxHp}</div>`;
+    left.innerHTML = `<div><span>${u.open ? "▼" : "▶"}</span> <b>${u.name}</b> — HP: ${u.hp}/${u.maxHp}</div>`;
 
+    // The Expandable Panel
     const panel = document.createElement("div");
     panel.className = "panel";
+    panel.style.display = u.open ? "block" : "none";
     panel.style.background = u.panelColor;
-    if (!u.open) panel.style.display = "none";
+    panel.onclick = (e) => e.stopPropagation(); // Prevents closing when clicking inside
 
     panel.innerHTML = `
-      Name:<input class="half" value="${u.name}" oninput="setName(${i},this.value)">
-      HP:<input class="quarter" type="number" value="${u.hp}" oninput="setHP(${i},this.value)">
-      /<input class="quarter" type="number" value="${u.maxHp}" oninput="setMaxHP(${i},this.value)">
-      <div style="text-align:right">Outside:<input type="color" value="${u.color}" onchange="setColor(${i},this.value)">
-      Inside:<input type="color" value="${u.panelColor}" onchange="setPanelColor(${i},this.value)"></div>
-      <div class="section"><b>Active Status Effects</b><div id="effects-${i}"></div></div>
-      <div class="section"><b>Create / Edit Status Effect</b>
-        <div class="grid">
-          <input class="half" id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})">
-          <input class="half" id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})">
-          <button onclick="toggleSign(${i})">${u.sign===1 ? "+" : "-"}</button>
-          <input class="quarter" id="eval-${i}" type="number" placeholder="HP" oninput="updatePreview(${i})">
-          <input class="quarter" id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})">
-        </div>
-        <button onclick="addOrEditEffect(${i})">Apply / Add New</button>
-        <div class="section"><b>Preview</b><div class="preview" id="preview-${i}"></div></div>
+      <div class="section">
+          Name: <input class="half" value="${u.name}" oninput="updateUnitField(${i}, 'name', this.value)">
+          HP: <input class="quarter" type="number" value="${u.hp}" oninput="updateUnitField(${i}, 'hp', this.value)">
+          / <input class="quarter" type="number" value="${u.maxHp}" oninput="updateUnitField(${i}, 'maxHp', this.value)">
       </div>
-      <div class="section" style="display:flex;justify-content:space-between;">
-        <button onclick="duplicateUnit(${i})">Duplicate</button>
-        <button class="delete" onclick="deleteUnit(${i})">Delete</button>
+      <div class="section">
+          <b>Effects</b>
+          <div id="effects-list-${i}"></div>
+          <div class="grid">
+              <input id="ename-${i}" placeholder="Effect Name">
+              <input id="ecause-${i}" placeholder="Cause">
+              <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
+              <input id="eval-${i}" type="number" class="quarter" placeholder="HP">
+              <input id="edur-${i}" type="number" class="quarter" placeholder="Turns">
+          </div>
+          <button onclick="addEffect(${i})">Apply Effect</button>
+      </div>
+      <div class="section" style="display:flex; justify-content: space-between; margin-top: 10px;">
+          <button onclick="duplicateUnit(${i})">Duplicate</button>
+          <button class="delete" onclick="deleteUnit(${i})">Delete Unit</button>
       </div>
     `;
 
-    panel.onclick = (e) => e.stopPropagation();
-    panel.querySelectorAll("input,button").forEach(el=>el.onclick=el.oninput=(e)=>e.stopPropagation());
     left.appendChild(panel);
-        // RIGHT COLUMN (turns + drag)
+    div.appendChild(left);
+
+    // Right Side (Turn Controls)
     const right = document.createElement("div");
     right.className = "rightCol";
-    right.style.justifyContent="center";
+    right.onclick = (e) => e.stopPropagation();
     right.innerHTML = `
-      <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
-      <div style="display:flex;align-items:center;gap:4px; margin:2px 0;">
-        <input class="turnBox" value="${u.turn}" onclick="event.stopPropagation();" onchange="setTurn(${i},this.value)">
-        <div class="drag">|||</div>
-      </div>
-      <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
+        <button onclick="changeTurn(${i}, 1)">+</button>
+        <div style="font-size: 0.8em;">Turn ${u.turn}</div>
+        <button onclick="changeTurn(${i}, -1)">-</button>
     `;
-
-    // Drag handle for reordering units
-    const dragHandle = right.querySelector(".drag");
-    dragHandle.draggable = true;
-    dragHandle.ondragstart = (e) => { e.dataTransfer.setData("index", i); };
-    div.ondragover = (e) => e.preventDefault();
-    div.ondrop = (e) => {
-      const from = e.dataTransfer.getData("index");
-      const moved = state.units.splice(from, 1)[0];
-      state.units.splice(i, 0, moved);
-      render();
-    };
-
-    // Toggle panel open on click
-    div.onclick = (e) => { 
-      if (e.target.closest(".panel")) return; 
-      u.open = !u.open; 
-      render(); 
-    };
-
-    div.appendChild(left); 
+    
     div.appendChild(right);
     container.appendChild(div);
-
-    renderEffects(i);
-    updatePreview(i);
-  });
-
-  renderLog();
-}
-
-/* ---------------- UNIT EDIT FUNCTIONS ---------------- */
-function setName(i,val){ state.units[i].name=val; render(); }
-function setHP(i,val){ state.units[i].hp=parseInt(val)||0; render(); }
-function setMaxHP(i,val){ state.units[i].maxHp=parseInt(val)||0; render(); }
-function setColor(i,val){ state.units[i].color=val; render(); }
-function setPanelColor(i,val){ state.units[i].panelColor=val; render(); }
-function setTurn(i,val){ state.units[i].turn=parseInt(val)||0; render(); }
-function nextTurn(i){ state.units[i].turn++; render(); }
-function prevTurn(i){ state.units[i].turn=Math.max(0,state.units[i].turn-1); render(); }
-
-/* ---------------- STATUS EFFECT FUNCTIONS ---------------- */
-function toggleSign(i){
-  state.units[i].sign *= -1;
-  render();
-}
-
-function updatePreview(i){
-  const eName = document.getElementById(`ename-${i}`).value;
-  const eCause = document.getElementById(`ecause-${i}`).value;
-  const eVal = parseInt(document.getElementById(`eval-${i}`).value)||0;
-  const eDur = parseInt(document.getElementById(`edur-${i}`).value)||0;
-  const sign = state.units[i].sign;
-  const preview = document.getElementById(`preview-${i}`);
-  if(!eName) { preview.innerText=""; return; }
-  preview.innerText=`(${eCause||"Unknown"}) inflicted ${eName} on ${state.units[i].name} for ${eDur} turns (${sign*eVal>0 ? "+" : ""}${sign*eVal} HP)`;
-}
-
-function addOrEditEffect(i){
-  const u = state.units[i];
-  const eName = document.getElementById(`ename-${i}`).value;
-  const eCause = document.getElementById(`ecause-${i}`).value || "Unknown";
-  const eVal = parseInt(document.getElementById(`eval-${i}`).value)||0;
-  const eDur = parseInt(document.getElementById(`edur-${i}`).value)||0;
-  const sign = u.sign;
-
-  if(!eName || eDur<=0) return;
-
-  // if editing, replace selectedEffect
-  if(u.selectedEffect!==null){
-    u.effects[u.selectedEffect]={name:eName,cause:eCause,dmg:sign*eVal,duration:eDur,start:u.turn};
-    u.selectedEffect=null;
-  } else {
-    u.effects.push({name:eName,cause:eCause,dmg:sign*eVal,duration:eDur,start:u.turn});
-  }
-
-  log(`(${eCause}) inflicted ${eName} on ${u.name} for ${eDur} turns (${sign*eVal>0 ? "+" : ""}${sign*eVal} HP)`);
-  render();
-}
-
-function renderEffects(i){
-  const u = state.units[i];
-  const container = document.getElementById(`effects-${i}`);
-  container.innerHTML = "";
-
-  u.effects.forEach((e,idx)=>{
-    const div = document.createElement("div");
-    div.className="effectRow";
-    div.style.marginBottom="2px";
-    div.innerHTML=`
-      <span>${e.name} (${e.dmg>0?"+":"")}${e.dmg} over ${e.duration} turns)</span>
-      <div>
-        <button onclick="editEffect(${i},${idx})">Edit</button>
-        <button class="delete" onclick="deleteEffect(${i},${idx})">Delete</button>
-        <button onclick="duplicateEffect(${i},${idx})">Duplicate</button>
-      </div>
-    `;
-    container.appendChild(div);
+    
+    if(u.open) renderUnitEffects(i);
   });
 }
 
-function editEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  document.getElementById(`ename-${uIdx}`).value=e.name;
-  document.getElementById(`ecause-${uIdx}`).value=e.cause;
-  document.getElementById(`eval-${uIdx}`).value=Math.abs(e.dmg);
-  document.getElementById(`edur-${uIdx}`).value=e.duration;
-  u.sign=e.dmg>=0?1:-1;
-  u.selectedEffect=eIdx;
-  updatePreview(uIdx);
+function renderUnitEffects(uIdx) {
+    const list = document.getElementById(`effects-list-${uIdx}`);
+    const u = state.units[uIdx];
+    list.innerHTML = u.effects.map((e, eIdx) => `
+        <div class="effectRow">
+            <span>${e.name} (${e.dmg > 0 ? '+':''}${e.dmg} HP, ${e.duration} turns)</span>
+            <button class="delete" onclick="deleteEffect(${uIdx}, ${eIdx})">X</button>
+        </div>
+    `).join('');
 }
 
-function deleteEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  log(`Deleted effect ${u.effects[eIdx].name} from ${u.name}`);
-  u.effects.splice(eIdx,1);
-  render();
-}
-
-function duplicateEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  u.effects.push({...e});
-  log(`Duplicated effect ${e.name} on ${u.name}`);
-  render();
-}
-
-/* ---------------- UNIT DUPLICATE / DELETE ---------------- */
-function duplicateUnit(i){
-  const copy = {...state.units[i], effects:[...state.units[i].effects], history:[...state.units[i].history]};
-  state.units.splice(i+1,0,copy);
-  log(`Duplicated unit ${state.units[i].name}`);
-  render();
-}
-
-function deleteUnit(i){
-  log(`Deleted unit ${state.units[i].name}`);
-  state.units.splice(i,1);
-  render();
-}
-  /* ---------------- HISTORY / LOG ---------------- */
-function clearHistory(){ state.log=[]; renderLog(); }
-
-document.getElementById("outlineColor").onchange=(e)=>{
-  state.outlineColor=e.target.value;
-  renderLog();
-};
-
-function renderLog(){
+function renderLog() {
   const c = document.getElementById("logContent");
-  c.innerHTML = "";
-  state.log.slice().reverse().forEach((e,idx)=>{
-    const div = document.createElement("div");
-    div.innerText = e;
-    div.style.wordWrap = "break-word";
-    div.style.marginBottom="2px";
-    if(state.selected!==null && (state.multiSelect?state.selected.includes(idx):state.selected===idx)){
-      div.style.outline="2px solid "+state.outlineColor;
-    } else div.style.outline="none";
-    c.appendChild(div);
-  });
+  c.innerHTML = state.log.slice().reverse().map(entry => 
+    `<div style="border-bottom: 1px solid #222; padding: 4px 0; font-size: 0.9em;">${entry}</div>`
+  ).join('');
 }
 
-/* ---------------- APPLY TURN EFFECTS MANUALLY ---------------- */
-function applyEffectsToUnit(i){
-  const u = state.units[i];
-  u.effects.forEach((e,idx)=>{
-    if(u.turn>=e.start && u.turn<e.start+e.duration){
-      u.hp-=e.dmg;
-      if(u.turn===e.start+e.duration-1){
-        log(`Effect ${e.name} expired on ${u.name}`);
-      }
-    }
-  });
-  render();
+/* ---------------- LOGIC FUNCTIONS ---------------- */
+function updateUnitField(i, field, val) {
+    state.units[i][field] = field === 'name' ? val : parseInt(val);
 }
 
-function applyEffectsToAll(){
-  state.units.forEach((u,idx)=>applyEffectsToUnit(idx));
+function changeTurn(i, amt) {
+    state.units[i].turn = Math.max(0, state.units[i].turn + amt);
+    log(`${state.units[i].name} turn changed to ${state.units[i].turn}`);
+    render();
 }
 
-/* ---------------- HISTORY SELECTION ---------------- */
-function selectHistory(idx, e){
-  if(e.ctrlKey || e.metaKey){
-    if(!Array.isArray(state.selected)) state.selected=[state.selected];
-    const pos = state.selected.indexOf(idx);
-    if(pos>-1) state.selected.splice(pos,1);
-    else state.selected.push(idx);
-  } else {
-    state.selected=idx;
-  }
-  renderLog();
+function addEffect(i) {
+    const name = document.getElementById(`ename-${i}`).value;
+    const dmg = parseInt(document.getElementById(`eval-${i}`).value) || 0;
+    const dur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
+    if(!name) return;
+
+    state.units[i].effects.push({ name, dmg: dmg * state.units[i].sign, duration: dur });
+    log(`Effect "${name}" added to ${state.units[i].name}`);
+    render();
 }
 
-function clearSelectedHistory(){
-  if(Array.isArray(state.selected)){
-    state.selected.sort((a,b)=>b-a).forEach(i=>state.log.splice(i,1));
-  } else if(state.selected!==null){
-    state.log.splice(state.selected,1);
-  }
-  state.selected=null;
-  renderLog();
+function deleteEffect(uIdx, eIdx) {
+    state.units[uIdx].effects.splice(eIdx, 1);
+    render();
 }
 
-/* ---------------- DUPLICATE / CLEAR UNITS AND EFFECTS ---------------- */
-function duplicateUnit(i){
-  const copy = {...state.units[i], effects:[...state.units[i].effects], history:[...state.units[i].history]};
-  state.units.splice(i+1,0,copy);
-  log(`Duplicated unit ${state.units[i].name}`);
-  render();
+function toggleSign(i) {
+    state.units[i].sign *= -1;
+    render();
 }
 
-function deleteUnit(i){
-  log(`Deleted unit ${state.units[i].name}`);
-  state.units.splice(i,1);
-  render();
+function duplicateUnit(i) {
+    const copy = JSON.parse(JSON.stringify(state.units[i]));
+    state.units.splice(i + 1, 0, copy);
+    render();
 }
 
-function duplicateEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  u.effects.push({...e});
-  log(`Duplicated effect ${e.name} on ${u.name}`);
-  render();
+function deleteUnit(i) {
+    state.units.splice(i, 1);
+    render();
 }
 
-function deleteEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  log(`Deleted effect ${u.effects[eIdx].name} from ${u.name}`);
-  u.effects.splice(eIdx,1);
-  render();
-}
+function clearUnits() { state.units = []; render(); }
+function clearAllEffects() { state.units.forEach(u => u.effects = []); render(); }
+function resetAllHP() { state.units.forEach(u => u.hp = u.maxHp); render(); }
+function clearHistory() { state.log = []; renderLog(); }
 
-/* ---------------- PREVIEW UPDATES ---------------- */
-function updatePreview(i){
-  const eName = document.getElementById(`ename-${i}`).value;
-  const eCause = document.getElementById(`ecause-${i}`).value;
-  const eVal = parseInt(document.getElementById(`eval-${i}`).value)||0;
-  const eDur = parseInt(document.getElementById(`edur-${i}`).value)||0;
-  const sign = state.units[i].sign;
-  const preview = document.getElementById(`preview-${i}`);
-  if(!eName) { preview.innerText=""; return; }
-  preview.innerText=`(${eCause||"Unknown"}) inflicted ${eName} on ${state.units[i].name} for ${eDur} turns (${sign*eVal>0?"+":""}${sign*eVal} HP)`;
-}
-
-/* ---------------- MULTI-SELECT / GLOBAL OUTLINE ---------------- */
-function toggleMultiSelect(){
-  state.multiSelect=!state.multiSelect;
-}
-
-/* ---------------- CLEAR ALL HISTORY ---------------- */
-function clearAllHistory(){
-  state.log=[];
-  state.selected=null;
-  renderLog();
-}
-
-/* ---------------- HISTORY LOG DRAG RESIZE ---------------- */
+/* ---------------- RESIZE LOGIC ---------------- */
 const divider = document.getElementById("divider");
+const logBox = document.getElementById("log");
 let isResizing = false;
-divider.addEventListener("mousedown", function(e){
-  isResizing = true;
-  document.body.style.cursor="col-resize";
-});
-document.addEventListener("mousemove", function(e){
-  if(!isResizing) return;
-  const containerWidth = document.querySelector(".container").offsetWidth;
-  const newWidth = containerWidth - e.clientX;
-  document.getElementById("log").style.width = newWidth+"px";
-});
-document.addEventListener("mouseup", function(e){
-  if(isResizing){
-    isResizing=false;
-    document.body.style.cursor="default";
-  }
-});
-  /* ---------------- UNIT RENDER EFFECT BUTTONS / ALIGNMENT ---------------- */
-function renderEffects(i){
-  const u = state.units[i];
-  const container = document.getElementById(`effects-${i}`);
-  container.innerHTML = "";
 
-  u.effects.forEach((e,idx)=>{
-    const div = document.createElement("div");
-    div.className="effectRow";
-    div.style.display="flex";
-    div.style.justifyContent="space-between";
-    div.style.alignItems="center";
-    div.style.marginBottom="2px";
-
-    div.innerHTML=`
-      <span>${e.name} (${e.dmg>0?"+":""}${e.dmg} over ${e.duration} turns)</span>
-      <div style="display:flex; gap:2px;">
-        <button onclick="editEffect(${i},${idx})">Edit</button>
-        <button class="delete" onclick="deleteEffect(${i},${idx})">Delete</button>
-        <button onclick="duplicateEffect(${i},${idx})">Duplicate</button>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-/* ---------------- DUPLICATE / DELETE EFFECTS ---------------- */
-function editEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  document.getElementById(`ename-${uIdx}`).value=e.name;
-  document.getElementById(`ecause-${uIdx}`).value=e.cause;
-  document.getElementById(`eval-${uIdx}`).value=Math.abs(e.dmg);
-  document.getElementById(`edur-${uIdx}`).value=e.duration;
-  u.sign=e.dmg>=0?1:-1;
-  u.selectedEffect=eIdx;
-  updatePreview(uIdx);
-}
-
-/* ---------------- DUPLICATE UNIT ---------------- */
-function duplicateUnit(i){
-  const u = state.units[i];
-  const copy = {
-    ...u,
-    effects: u.effects.map(e=>({...e})),
-    history: [...u.history]
-  };
-  state.units.splice(i+1,0,copy);
-  log(`Duplicated unit ${u.name}`);
-  render();
-}
-
-/* ---------------- DELETE UNIT ---------------- */
-function deleteUnit(i){
-  const u = state.units[i];
-  log(`Deleted unit ${u.name}`);
-  state.units.splice(i,1);
-  render();
-}
-
-/* ---------------- TURN BUTTON STACKING / ||| ALIGNMENT ---------------- */
-function renderRightColumn(i, u){
-  const right = document.createElement("div");
-  right.className="rightCol";
-  right.style.display="flex";
-  right.style.flexDirection="column";
-  right.style.alignItems="center";
-  right.style.gap="2px";
-
-  const minus = document.createElement("button");
-  minus.innerText="-";
-  minus.onclick=(e)=>{ e.stopPropagation(); prevTurn(i); };
-
-  const turnBoxDiv = document.createElement("div");
-  turnBoxDiv.style.display="flex";
-  turnBoxDiv.style.alignItems="center";
-  turnBoxDiv.style.gap="2px";
-
-  const turnBox = document.createElement("input");
-  turnBox.className="turnBox";
-  turnBox.value=u.turn;
-  turnBox.onclick=(e)=>e.stopPropagation();
-  turnBox.onchange=(e)=>setTurn(i,e.target.value);
-
-  const drag = document.createElement("div");
-  drag.className="drag";
-  drag.innerText="|||";
-  drag.draggable=true;
-  drag.ondragstart=(e)=>{ e.dataTransfer.setData("index", i); };
-
-  turnBoxDiv.appendChild(turnBox);
-  turnBoxDiv.appendChild(drag);
-
-  const plus = document.createElement("button");
-  plus.innerText="+";
-  plus.onclick=(e)=>{ e.stopPropagation(); nextTurn(i); };
-
-  right.appendChild(minus);
-  right.appendChild(turnBoxDiv);
-  right.appendChild(plus);
-
-  return right;
-}
-
-/* ---------------- UNIT PANEL ALIGNMENT ---------------- */
-function renderUnitPanel(i,u){
-  const panel = document.createElement("div");
-  panel.className="panel";
-  panel.style.background = u.panelColor;
-  if(!u.open) panel.style.display="none";
-
-  // Name & HP
-  panel.innerHTML=`
-    Name:<input class="half" value="${u.name}" oninput="setName(${i},this.value)">
-    HP:<input class="quarter" type="number" value="${u.hp}" oninput="setHP(${i},this.value)">
-    /<input class="quarter" type="number" value="${u.maxHp}" oninput="setMaxHP(${i},this.value)">
-  `;
-
-  // Colors stacked vertically (outside then inside)
-  const colorDiv=document.createElement("div");
-  colorDiv.style.textAlign="right";
-  colorDiv.innerHTML=`
-    Outside:<input type="color" value="${u.color}" onchange="setColor(${i},this.value)">
-    Inside:<input type="color" value="${u.panelColor}" onchange="setPanelColor(${i},this.value)">
-  `;
-  panel.appendChild(colorDiv);
-
-  // Status Effects Sections
-  const activeSec=document.createElement("div");
-  activeSec.className="section";
-  activeSec.innerHTML=`<b>Active Status Effects</b><div id="effects-${i}"></div>`;
-  panel.appendChild(activeSec);
-
-  const createSec=document.createElement("div");
-  createSec.className="section";
-  createSec.innerHTML=`
-    <b>Create / Edit Status Effect</b>
-    <div class="grid">
-      <input class="half" id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})">
-      <input class="half" id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})">
-      <button onclick="toggleSign(${i})">${u.sign===1?"+":"-"}</button>
-      <input class="quarter" id="eval-${i}" type="number" placeholder="HP" oninput="updatePreview(${i})">
-      <input class="quarter" id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})">
-    </div>
-    <button onclick="addOrEditEffect(${i})">Apply / Add New</button>
-    <div class="section"><b>Preview</b><div class="preview" id="preview-${i}"></div></div>
-  `;
-  panel.appendChild(createSec);
-
-  // Duplicate/Delete buttons for unit
-  const bottomSec=document.createElement("div");
-  bottomSec.className="section";
-  bottomSec.style.display="flex";
-  bottomSec.style.justifyContent="space-between";
-  bottomSec.innerHTML=`
-    <button onclick="duplicateUnit(${i})">Duplicate</button>
-    <button class="delete" onclick="deleteUnit(${i})">Delete</button>
-  `;
-  panel.appendChild(bottomSec);
-
-  panel.onclick=(e)=>e.stopPropagation();
-  return panel;
-}
-  /* ---------------- HISTORY LOG / FOCUS MODE ---------------- */
-let focusMode=false;
-
-function toggleFocusMode(){
-  focusMode=!focusMode;
-  document.getElementById("main").style.display=focusMode?"none":"block";
-  document.getElementById("divider").style.display=focusMode?"none":"block";
-  document.getElementById("log").style.flex=focusMode?"1":"none";
-  renderLog();
-}
-
-/* ---------------- HISTORY LOG SELECTION ---------------- */
-function selectHistory(idx,ctrl=false){
-  if(ctrl){
-    // Multi-select toggle
-    if(!state.multiSelect) state.multiSelect=true;
-    if(state.selected instanceof Array){
-      const i = state.selected.indexOf(idx);
-      if(i>-1) state.selected.splice(i,1);
-      else state.selected.push(idx);
-    } else {
-      state.selected=[state.selected, idx].filter(x=>x!==undefined);
-    }
-  } else {
-    state.selected=idx;
-    state.multiSelect=false;
-  }
-  renderLog();
-}
-
-/* ---------------- HISTORY LOG RENDER ---------------- */
-function renderLog(){
-  const c=document.getElementById("logContent");
-  c.innerHTML="";
-  state.log.slice().reverse().forEach((e,revIdx)=>{
-    const idx=state.log.length-1-revIdx;
-    const div=document.createElement("div");
-    div.innerText=e;
-    div.style.wordWrap="break-word";
-    div.style.marginBottom="2px";
-    if(state.selected instanceof Array? state.selected.includes(idx) : state.selected===idx)
-      div.style.outline="2px solid "+state.outlineColor;
-    div.onclick=(ev)=>{ selectHistory(idx,ev.ctrlKey); };
-    c.appendChild(div);
-  });
-}
-
-/* ---------------- CLEAR / MULTI-HISTORY ---------------- */
-function clearHistory(){ state.log=[]; state.selected=null; renderLog(); }
-
-/* ---------------- HISTORY DRAG WIDTH ---------------- */
-const divider=document.getElementById("divider");
-let dragging=false;
-divider.onmousedown=(e)=>{
-  dragging=true;
-  document.body.style.cursor="col-resize";
-};
-document.onmouseup=(e)=>{ dragging=false; document.body.style.cursor="default"; };
-document.onmousemove=(e)=>{
-  if(dragging){
-    const main=document.getElementById("main");
-    const log=document.getElementById("log");
-    const container=document.querySelector(".container");
-    const offset=e.clientX;
-    const total=container.clientWidth;
-    const logWidth=Math.min(Math.max(150,total-offset-5),600);
-    log.style.width=logWidth+"px";
-  }
+divider.onmousedown = () => isResizing = true;
+document.onmouseup = () => isResizing = false;
+document.onmousemove = (e) => {
+    if (!isResizing) return;
+    const newWidth = window.innerWidth - e.clientX;
+    logBox.style.width = Math.max(100, newWidth) + "px";
 };
 
-/* ---------------- GLOBAL OUTLINE COLOR ---------------- */
-document.getElementById("outlineColor").onchange=(e)=>{
-  state.outlineColor=e.target.value;
-  renderLog();
-};
-
-/* ---------------- UNIT HISTORY SNAPSHOT (UNDO) ---------------- */
-function saveUnitSnapshot(uIdx){
-  const u=state.units[uIdx];
-  const snapshot={
-    hp:u.hp,
-    turn:u.turn,
-    effects:u.effects.map(e=>({...e})),
-    name:u.name
-  };
-  u.history.push(snapshot);
-}
-
-function restoreUnitSnapshot(uIdx){
-  const u=state.units[uIdx];
-  if(u.history.length>0){
-    const snap=u.history.pop();
-    u.hp=snap.hp;
-    u.turn=snap.turn;
-    u.effects=snap.effects;
-    u.name=snap.name;
-    render();
-  }
-}
-
-/* ---------------- UNIT SNAPSHOT ON TURN CHANGE ---------------- */
-function nextTurn(i){ saveUnitSnapshot(i); state.units[i].turn++; render(); }
-function prevTurn(i){ saveUnitSnapshot(i); state.units[i].turn=Math.max(0,state.units[i].turn-1); render(); }
-
-/* ---------------- APPLY EFFECT MANUALLY ---------------- */
-function applyEffect(uIdx, eIdx){
-  const u=state.units[uIdx];
-  const e=u.effects[eIdx];
-  if(u.turn>=e.start && u.turn<e.start+e.duration){
-    u.hp-=e.dmg;
-    if(u.turn===e.start+e.duration-1){
-      log(`Effect ${e.name} expired on ${u.name}`);
-    }
-  }
-}
-
-/* ---------------- CLEAR ALL UNITS / EFFECTS ---------------- */
-function clearUnits(){ state.units=[]; log("Cleared all units"); render(); }
-function clearAllEffects(){ state.units.forEach(u=>u.effects=[]); log("Cleared all effects"); render(); }
-function resetAllHP(){ state.units.forEach(u=>u.hp=u.maxHp); log("Reset all HP"); render(); }
-
-/* ---------------- DUPLICATE / DELETE EFFECTS ---------------- */
-function duplicateEffect(uIdx,eIdx){
-  const u=state.units[uIdx];
-  const e=u.effects[eIdx];
-  u.effects.push({...e});
-  log(`Duplicated effect ${e.name} on ${u.name}`);
-  render();
-}
-
-/* ---------------- PANEL STOP PROPAGATION ---------------- */
-document.addEventListener("click", e=>{
-  if(e.target.closest(".panel")) e.stopPropagation();
-});
-
-/* ---------------- FOCUS MODE BUTTON ---------------- */
-const focusBtn=document.createElement("button");
-focusBtn.innerText="Toggle Focus Mode";
-focusBtn.onclick=toggleFocusMode;
-document.getElementById("main").insertBefore(focusBtn, document.getElementById("units"));
-  <script>
-/* ---------------- INPUT SIZE / SPACING ---------------- */
-const styleSheets = document.styleSheets[0];
-styleSheets.insertRule("input.half { width:50px; margin:1px; }");
-styleSheets.insertRule("input.quarter { width:25px; margin:1px; }");
-styleSheets.insertRule(".section { margin-top:8px; }");
-styleSheets.insertRule(".preview { font-size:0.9em; margin-top:4px; opacity:0.8; }");
-styleSheets.insertRule(".grid input { text-align:center; }");
-
-/* ---------------- PREVIEW ---------------- */
-function updatePreview(i){
-  const u = state.units[i];
-  const eName = document.getElementById(`ename-${i}`).value;
-  const eCause = document.getElementById(`ecause-${i}`).value || "Unknown";
-  const eVal = parseInt(document.getElementById(`eval-${i}`).value) || 0;
-  const eDur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
-  const sign = u.sign;
-  const preview = document.getElementById(`preview-${i}`);
-  if(!eName) { preview.innerText=""; return; }
-  preview.innerText = `(${eCause}) inflicted ${eName} on ${u.name} for ${eDur} turns (${sign*eVal>0 ? "+" : ""}${sign*eVal} HP)`;
-}
-
-/* ---------------- TOGGLE EFFECT SIGN ---------------- */
-function toggleSign(i){
-  state.units[i].sign *= -1;
-  updatePreview(i);
-}
-
-/* ---------------- ADD OR EDIT STATUS EFFECT ---------------- */
-function addOrEditEffect(i){
-  const u = state.units[i];
-  const eName = document.getElementById(`ename-${i}`).value;
-  const eCause = document.getElementById(`ecause-${i}`).value || "Unknown";
-  const eVal = parseInt(document.getElementById(`eval-${i}`).value) || 0;
-  const eDur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
-  const sign = u.sign;
-  if(!eName || eDur <= 0) return;
-
-  // Editing existing effect
-  if(u.selectedEffect !== null){
-    u.effects[u.selectedEffect] = { name:eName, cause:eCause, dmg:sign*eVal, duration:eDur, start:u.turn };
-    u.selectedEffect = null;
-  } else {
-    u.effects.push({ name:eName, cause:eCause, dmg:sign*eVal, duration:eDur, start:u.turn });
-  }
-
-  log(`(${eCause}) inflicted ${eName} on ${u.name} for ${eDur} turns (${sign*eVal>0 ? "+" : ""}${sign*eVal} HP)`);
-  render();
-}
-
-/* ---------------- EDIT / DUPLICATE / DELETE EFFECTS ---------------- */
-function editEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  document.getElementById(`ename-${uIdx}`).value = e.name;
-  document.getElementById(`ecause-${uIdx}`).value = e.cause;
-  document.getElementById(`eval-${uIdx}`).value = Math.abs(e.dmg);
-  document.getElementById(`edur-${uIdx}`).value = e.duration;
-  u.sign = e.dmg >= 0 ? 1 : -1;
-  u.selectedEffect = eIdx;
-  updatePreview(uIdx);
-}
-
-function deleteEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  log(`Deleted effect ${u.effects[eIdx].name} from ${u.name}`);
-  u.effects.splice(eIdx,1);
-  render();
-}
-
-function duplicateEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  u.effects.push({...e});
-  log(`Duplicated effect ${e.name} on ${u.name}`);
-  render();
-}
-
-/* ---------------- DUPLICATE / DELETE UNITS ---------------- */
-function duplicateUnit(i){
-  const copy = {...state.units[i], effects:[...state.units[i].effects.map(e=>({...e}))], history:[...state.units[i].history]};
-  state.units.splice(i+1,0,copy);
-  log(`Duplicated unit ${state.units[i].name}`);
-  render();
-}
-
-function deleteUnit(i){
-  log(`Deleted unit ${state.units[i].name}`);
-  state.units.splice(i,1);
-  render();
-}
-
-/* ---------------- MANUAL APPLY EFFECT FRAMEWORK ---------------- */
-function applyEffect(uIdx,eIdx){
-  const u = state.units[uIdx];
-  const e = u.effects[eIdx];
-  if(u.turn >= e.start && u.turn < e.start + e.duration){
-    u.hp -= e.dmg;
-    if(u.turn === e.start + e.duration - 1){
-      log(`Effect ${e.name} expired on ${u.name}`);
-    }
-    render();
-  }
-}
-
-/* ---------------- CLEAR / RESET ---------------- */
-function clearUnits(){ state.units=[]; log("Cleared all units"); render(); }
-function clearAllEffects(){ state.units.forEach(u=>u.effects=[]); log("Cleared all effects"); render(); }
-function resetAllHP(){ state.units.forEach(u=>u.hp=u.maxHp); log("Reset all HP"); render(); }
-
-/* ---------------- PANEL STOP PROPAGATION ---------------- */
-document.addEventListener("click", e=>{
-  if(e.target.closest(".panel")) e.stopPropagation();
-});
-
-/* ---------------- HISTORY LOG ---------------- */
-function clearHistory(){ state.log=[]; renderLog(); }
-document.getElementById("outlineColor").onchange = (e)=>{
-  state.outlineColor = e.target.value;
-  renderLog();
-};
+// Initial Render
+render();
 </script>
+</body>
+</html>
