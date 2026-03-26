@@ -6,17 +6,36 @@ body {
   font-family: sans-serif;
   background: #111;
   color: white;
+  margin: 0;
+}
+
+.container {
+  display: flex;
+}
+
+/* LEFT SIDE */
+#main {
+  flex: 2;
+  padding: 10px;
+}
+
+/* RIGHT SIDE LOG */
+#log {
+  flex: 1;
+  background: #000;
+  padding: 10px;
+  border-left: 2px solid #444;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .unit {
-  background: #222;
   margin: 5px;
   padding: 10px;
   cursor: pointer;
 }
 
 .panel {
-  background: #1a1a1a;
   padding: 10px;
   margin-top: 5px;
   display: none;
@@ -28,24 +47,34 @@ body {
   gap: 5px;
 }
 
-input {
-  width: 60px;
-}
-
-/* Turn box */
 .turnBox {
   width: 40px;
   text-align: center;
+}
+
+input {
+  margin: 2px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>TTRPG Tracker</h2>
-<button onclick="addUnit()">+ Add Unit</button>
+<div class="container">
 
-<div id="units"></div>
+  <!-- MAIN -->
+  <div id="main">
+    <h2>TTRPG Tracker</h2>
+    <button onclick="addUnit()">+ Add Unit</button>
+    <div id="units"></div>
+  </div>
+
+  <!-- HISTORY LOG -->
+  <div id="log">
+    <h3>History</h3>
+  </div>
+
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -64,7 +93,8 @@ const ref = doc(db, "game", "state");
 
 /* ---------------- STATE ---------------- */
 let state = {
-  units: []
+  units: [],
+  log: []
 };
 
 /* ---------------- SYNC ---------------- */
@@ -81,17 +111,21 @@ function save() {
   setDoc(ref, state);
 }
 
-/* ---------------- UNIT CREATION ---------------- */
+/* ---------------- ADD UNIT ---------------- */
 window.addUnit = function() {
   state.units.push({
     name: "Unit",
     hp: 10,
     maxHp: 10,
     turn: 0,
-    history: [], // 🔁 stores snapshots for rewind
+    history: [],
     effects: [],
-    open: false
+    open: false,
+    color: "#222",
+    panelColor: "#1a1a1a"
   });
+
+  state.log.push("Added new unit");
   save();
 };
 
@@ -104,14 +138,16 @@ function render() {
 
     const div = document.createElement("div");
     div.className = "unit";
+    div.style.background = u.color;
 
     /* HEADER */
     div.innerHTML = `
       <div class="row">
+        <span>${u.open ? "▼" : "▶"}</span>
+
         <b>${u.name}</b>
         HP: ${u.hp}/${u.maxHp}
 
-        <!-- TURN CONTROL -->
         <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
 
         <input class="turnBox" value="${u.turn}"
@@ -125,17 +161,30 @@ function render() {
     /* PANEL */
     const panel = document.createElement("div");
     panel.className = "panel";
+    panel.style.background = u.panelColor;
     if (u.open) panel.style.display = "block";
 
     panel.innerHTML = `
       Name: <input value="${u.name}" onchange="setName(${i}, this.value)"><br>
-      HP: <input type="number" value="${u.hp}" onchange="setHP(${i}, this.value)">
-      / <input type="number" value="${u.maxHp}" onchange="setMaxHP(${i}, this.value)">
+
+      HP:
+      <input type="number" value="${u.hp}" onchange="setHP(${i}, this.value)">
+      /
+      <input type="number" value="${u.maxHp}" onchange="setMaxHP(${i}, this.value)">
+
+      <br><br>
+
+      Outside Color:
+      <input type="color" value="${u.color}" onchange="setColor(${i}, this.value)">
+
+      Inside Color:
+      <input type="color" value="${u.panelColor}" onchange="setPanelColor(${i}, this.value)">
 
       <h4>Effects</h4>
       <div id="effects-${i}"></div>
 
       <input id="ename-${i}" placeholder="Name">
+      <input id="ecause-${i}" placeholder="Cause">
       <input id="eval-${i}" type="number" placeholder="HP">
 
       <!-- SIGN TOGGLE -->
@@ -146,8 +195,12 @@ function render() {
       <button onclick="addEffect(${i})">Add</button>
     `;
 
-    /* Toggle panel */
-    div.onclick = () => {
+    /* Prevent panel clicks from closing */
+    panel.onclick = (e) => e.stopPropagation();
+
+    /* Toggle panel ONLY when clicking header */
+    div.onclick = (e) => {
+      if (e.target.closest(".panel")) return;
       u.open = !u.open;
       save();
     };
@@ -157,14 +210,11 @@ function render() {
 
     renderEffects(i);
   });
+
+  renderLog();
 }
 
-/* ---------------- TURN SYSTEM (WITH TRUE REWIND) ---------------- */
-
-/*
-We store a snapshot BEFORE applying a turn change.
-That allows exact rewind.
-*/
+/* ---------------- TURN SYSTEM (TRUE REWIND) ---------------- */
 
 function snapshot(u) {
   u.history.push({
@@ -176,11 +226,12 @@ function snapshot(u) {
 window.nextTurn = function(i) {
   const u = state.units[i];
 
-  snapshot(u); // save before change
+  snapshot(u);
   u.turn++;
 
   applyEffects(u);
 
+  state.log.push(`${u.name} advanced to turn ${u.turn}`);
   save();
 };
 
@@ -191,6 +242,8 @@ window.prevTurn = function(i) {
     const prev = u.history.pop();
     u.hp = prev.hp;
     u.turn = prev.turn;
+
+    state.log.push(`${u.name} rewound to turn ${u.turn}`);
   }
 
   save();
@@ -202,6 +255,7 @@ window.setTurn = function(i, val) {
   snapshot(u);
   u.turn = parseInt(val) || 0;
 
+  state.log.push(`${u.name} set to turn ${u.turn}`);
   save();
 };
 
@@ -219,6 +273,7 @@ window.addEffect = function(i) {
   const u = state.units[i];
 
   const name = document.getElementById(`ename-${i}`).value;
+  const cause = document.getElementById(`ecause-${i}`).value || "Unknown";
   const val = parseInt(document.getElementById(`eval-${i}`).value);
   const dur = parseInt(document.getElementById(`edur-${i}`).value);
 
@@ -226,19 +281,23 @@ window.addEffect = function(i) {
     name,
     amount: val,
     duration: dur,
-    start: u.turn
+    start: u.turn,
+    cause
   });
+
+  state.log.push(
+    `${cause} inflicted ${name} on ${u.name} for ${dur} turns (${val} HP)`
+  );
 
   save();
 };
 
-/* SIGN TOGGLE */
 window.flipSign = function(i) {
   const input = document.getElementById(`eval-${i}`);
   input.value = -parseInt(input.value || 0);
 };
 
-/* ---------------- EFFECT RENDER ---------------- */
+/* ---------------- RENDER EFFECTS ---------------- */
 
 function renderEffects(i) {
   const u = state.units[i];
@@ -251,8 +310,21 @@ function renderEffects(i) {
     const left = (e.start + e.duration) - u.turn;
 
     div.innerHTML += `
-      <div>${e.name} (${e.amount}/turn, ${left} turns)</div>
+      <div>
+        ${e.name} (${e.amount}/turn, ${left} turns) [${e.cause}]
+      </div>
     `;
+  });
+}
+
+/* ---------------- LOG ---------------- */
+
+function renderLog() {
+  const logDiv = document.getElementById("log");
+  logDiv.innerHTML = "<h3>History</h3>";
+
+  state.log.slice().reverse().forEach(entry => {
+    logDiv.innerHTML += `<div>${entry}</div>`;
   });
 }
 
@@ -270,6 +342,16 @@ window.setHP = (i, val) => {
 
 window.setMaxHP = (i, val) => {
   state.units[i].maxHp = parseInt(val);
+  save();
+};
+
+window.setColor = (i, val) => {
+  state.units[i].color = val;
+  save();
+};
+
+window.setPanelColor = (i, val) => {
+  state.units[i].panelColor = val;
   save();
 };
 
