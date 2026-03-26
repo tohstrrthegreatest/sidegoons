@@ -1,17 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
+<title>TTRPG Tracker v6.2.0.e</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-body {
-  font-family: sans-serif;
-  background: #111;
-  color: white;
-  margin: 0;
+:root {
+  --bg: #1a1a1a;
+  --panel-bg: #222;
+  --accent: #df7679;
+  --text: #fff;
+  --secondary: #333;
 }
 
-.container {
+body {
+  font-family: 'Fredoka', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
   display: flex;
   height: 100vh;
+  overflow: hidden;
 }
 
 #main {
@@ -20,895 +28,350 @@ body {
   overflow-y: auto;
 }
 
-/* RESIZABLE LOG (drag handle) */
 #log {
-  width: 300px;
+  width: 300px; 
   background: #000;
-  padding: 10px;
-  border-left: 2px solid #444;
+  padding: 15px;
+  border-left: 3px solid var(--accent);
   overflow-y: auto;
   resize: horizontal;
 }
 
-/* UNIT */
+/* SLIM UNIT HEADER */
 .unit {
-  margin: 5px;
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-}
-
-/* LEFT SIDE */
-.unit-left {
-  flex: 1;
-}
-
-/* TURN + DRAG COLUMN */
-.rightCol {
+  margin-bottom: 6px;
+  padding: 6px 10px;
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
+  border-left: 4px solid var(--accent);
+}
+
+.unit-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
 }
 
-/* TURN */
-.turnBox {
-  width: 40px;
-  text-align: center;
+.unit-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
 }
 
-/* DRAG HANDLE */
-.drag {
-  cursor: grab;
+.unit-info input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  color: white;
+  font-family: 'Fredoka', sans-serif;
+  font-size: 0.95em;
 }
 
-/* PANEL */
+.hp-input { width: 38px; text-align: center; color: var(--accent) !important; font-weight: bold; }
+.name-input { font-weight: 500; width: 130px; }
+
 .panel {
-  margin-top: 5px;
+  margin-top: 8px;
   padding: 10px;
+  border-radius: 6px;
+  background: var(--panel-bg);
+  border: 1px solid #333;
 }
 
-/* EFFECT ROW */
+.turn-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.turnBox {
+  width: 30px;
+  text-align: center;
+  background: #111;
+  border: 1px solid #444;
+  color: white;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.btn-small {
+  padding: 2px 6px;
+  font-size: 0.7em;
+}
+
+/* EFFECTS LIST */
 .effectRow {
   display: flex;
   justify-content: space-between;
+  padding: 6px;
+  background: rgba(255,255,255,0.03);
+  margin-bottom: 4px;
+  border-radius: 4px;
   cursor: pointer;
+  font-size: 0.85em;
 }
 
-/* DELETE */
-.delete {
-  color: red;
-  cursor: pointer;
+.expired {
+  text-decoration: line-through;
+  opacity: 0.4;
+  background: transparent;
+  border: 1px dashed #444;
 }
 
-/* SECTION */
-.section {
-  margin-top: 12px;
+.switch-btn {
+  width: 35px;
+  height: 35px;
+  font-weight: bold;
+  background: var(--secondary);
 }
 
-/* PREVIEW */
-.preview {
-  opacity: 0.8;
-  font-size: 0.9em;
+.section-title {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 6px;
+  font-size: 0.75em;
+  color: var(--accent);
+  text-transform: uppercase;
 }
 
-/* INPUT GRID */
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
+.row-1 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.row-2 { display: flex; gap: 8px; align-items: center; }
+.row-2 input { flex: 1; }
+
+input, button {
+  background: #111;
+  color: white;
+  border: 1px solid #333;
+  padding: 6px;
+  border-radius: 4px;
+  font-family: 'Fredoka', sans-serif;
+}
+
+button:hover { border-color: var(--accent); }
+
+.delete { color: #ff5e5e; cursor: pointer; margin-left: 8px; }
+.duplicate { color: #5ea3ff; cursor: pointer; margin-left: 8px; }
+
+.preview-area {
+  margin-top: 4px;
+  color: #777;
+  font-size: 0.8em;
+  font-style: italic;
 }
 </style>
 </head>
 
 <body>
 
-<div class="container">
-
-  <!-- MAIN -->
   <div id="main">
-    <h1>TTRPG Tracker</h1>
-    <div style="margin-bottom:8px;">
-      Version: 5.0.0 &nbsp;&nbsp;
-      <button onclick="addUnit()">+ Add Unit</button>
+    <h1 id="title-header" style="margin: 0 0 10px 0; color: var(--accent); cursor:pointer; font-size: 1.5em;" onclick="toggleTheme()">TTRPG Tracker</h1>
+    <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
+      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.0.e</span>
+      <button onclick="addUnit()" style="background: var(--accent); color: #000; font-weight: 600; border:none; padding: 4px 10px;">+ Add Unit</button>
     </div>
-
     <div id="units"></div>
   </div>
 
-  <!-- LOG -->
   <div id="log">
-    <h3>History</h3>
+    <h3 style="margin-top: 0; color: var(--accent); font-size: 1.1em;">History</h3>
+    <div id="log-list"></div>
   </div>
-
-</div>
 
 <script>
 let state = {
   units: [],
-  log: []
+  log: [],
+  theme: 'coral'
 };
 
-/* ---------------- ADD UNIT ---------------- */
+function toggleTheme() {
+    state.theme = state.theme === 'coral' ? 'blue' : 'coral';
+    const color = state.theme === 'blue' ? '#0fb1f5' : '#df7679';
+    document.documentElement.style.setProperty('--accent', color);
+    render();
+}
+
+function log(text) {
+  state.log.push(text);
+  renderLog();
+}
+
 function addUnit() {
   state.units.push({
-    name: "Unit",
-    hp: 10,
-    maxHp: 10,
-    tempHp: 0, // 🔮 PREP FOR SHIELDS
-    turn: 0,
-    history: [],
-    effects: [],
-    open: false,
-    color: "#222",
-    panelColor: "#1a1a1a",
-    sign: 1,
-    selectedEffect: null
+    name: "New Unit", hp: 20, maxHp: 20, turn: 0, history: [], effects: [],
+    open: false, color: "#252525", panelColor: "#1a1a1a", sign: -1
   });
-  log("Added new unit");
   render();
 }
 
-/* ---------------- LOG ---------------- */
-function log(text) {
-  state.log.push(text);
-}
-
-/* ---------------- RENDER ---------------- */
 function render() {
   const container = document.getElementById("units");
   container.innerHTML = "";
 
   state.units.forEach((u, i) => {
-
     const div = document.createElement("div");
     div.className = "unit";
-    div.style.background = u.color;
+    div.style.backgroundColor = u.color;
 
-    /* LEFT */
-    const left = document.createElement("div");
-    left.className = "unit-left";
-
-    left.innerHTML = `
-      <div>
-        <span>${u.open ? "▼" : "▶"}</span>
-        <b>${u.name}</b>
-        HP: ${u.hp}/${u.maxHp}
-        ${u.tempHp > 0 ? `(Shield: ${u.tempHp})` : ""}
-      </div>
-    `;
-
-    /* PANEL */
-    const panel = document.createElement("div");
-    panel.className = "panel";
-    panel.style.background = u.panelColor;
-    if (!u.open) panel.style.display = "none";
-
-    panel.innerHTML = `
-      Name: <input value="${u.name}" oninput="setName(${i}, this.value)"><br>
-
-      HP:
-      <input type="number" value="${u.hp}" oninput="setHP(${i}, this.value)">
-      /
-      <input type="number" value="${u.maxHp}" oninput="setMaxHP(${i}, this.value)">
-
-      Temp:
-      <input type="number" value="${u.tempHp}" oninput="setTempHP(${i}, this.value)">
-
-      <div style="text-align:right">
-        Outside: <input type="color" value="${u.color}" onchange="setColor(${i}, this.value)">
-        Inside: <input type="color" value="${u.panelColor}" onchange="setPanelColor(${i}, this.value)">
-      </div>
-
-      <div class="section">
-        <b>Active Status Effects</b>
-        <div id="effects-${i}"></div>
-      </div>
-
-      <div class="section">
-        <b>Create / Edit Status Effect</b>
-
-        <div class="grid">
-          <input id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})">
-          <input id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})">
-
-          <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
-          <input id="eval-${i}" type="number" placeholder="HP" oninput="updatePreview(${i})">
-
-          <input id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})">
+    div.innerHTML = `
+      <div class="unit-header">
+        <div class="unit-info">
+          <span onclick="toggleOpen(${i})" style="cursor:pointer; width: 20px;">${u.open ? "▼" : "▶"}</span>
+          <input class="name-input" value="${u.name}" onchange="setName(${i}, this.value)">
+          <input class="hp-input" type="number" value="${u.hp}" onchange="setHP(${i}, this.value)">
+          <span style="opacity:0.3">/</span>
+          <input class="hp-input" type="number" value="${u.maxHp}" onchange="setMaxHP(${i}, this.value)">
         </div>
-
-        <button onclick="addOrEditEffect(${i})">Apply</button>
-
-        <div class="section">
-          <b>Preview</b>
-          <div class="preview" id="preview-${i}"></div>
+        <div class="turn-controls">
+            <button class="btn-small" onclick="nextTurn(${i})">▲</button>
+            <input class="turnBox" type="number" value="${u.turn}" onchange="setTurn(${i}, this.value)">
+            <button class="btn-small" onclick="prevTurn(${i})">▼</button>
+            <div style="cursor:grab; color:#555; margin-left:5px;" draggable="true" ondragstart="drag(${i}, event)">||</div>
         </div>
       </div>
-
-      <div class="section" style="display:flex; justify-content:space-between;">
-        <button onclick="duplicateUnit(${i})">Duplicate</button>
-        <button class="delete" onclick="deleteUnit(${i})">Delete</button>
-      </div>
     `;
 
-    panel.onclick = (e) => e.stopPropagation();
+    if (u.open) {
+      const panel = document.createElement("div");
+      panel.className = "panel";
+      panel.style.backgroundColor = u.panelColor;
+      panel.innerHTML = `
+        <span class="section-title">Active Status Effects</span>
+        <div id="effects-list-${i}"></div>
 
-    left.appendChild(panel);
+        <div style="margin-top:15px; border-top: 1px solid #333; padding-top:10px;">
+          <span class="section-title">Add Status Effect</span>
+          <div class="row-1">
+            <input id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'ecause-${i}')">
+            <input id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'eval-${i}')">
+          </div>
+          <div class="row-2">
+            <button id="esign-${i}" class="switch-btn" onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
+            <input id="eval-${i}" type="number" placeholder="Value" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'edur-${i}')">
+            <input id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'apply-${i}')">
+          </div>
+          <button id="apply-${i}" onclick="applyEffect(${i})" style="width:100%; margin-top:8px; background: var(--accent); color:#000; font-weight:600; border:none;">Apply</button>
+          <div class="preview-area" id="preview-${i}">... (+0 HP / 0 turns)</div>
+        </div>
 
-    /* RIGHT COLUMN (TURN + DRAG aligned) */
-    const right = document.createElement("div");
-    right.className = "rightCol";
-
-    right.innerHTML = `
-      <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
-      <input class="turnBox" value="${u.turn}" onchange="setTurn(${i}, this.value)">
-      <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
-      <div class="drag">|||</div>
-    `;
-
-    /* DRAG */
-    right.querySelector(".drag").draggable = true;
-    right.querySelector(".drag").ondragstart = (e) => {
-      e.dataTransfer.setData("index", i);
-    };
-
-    div.ondragover = (e) => e.preventDefault();
-    div.ondrop = (e) => {
-      const from = e.dataTransfer.getData("index");
-      const moved = state.units.splice(from, 1)[0];
-      state.units.splice(i, 0, moved);
-      render();
-    };
-
-    /* TOGGLE */
-    div.onclick = (e) => {
-      if (e.target.closest(".panel")) return;
-      u.open = !u.open;
-      render();
-    };
-
-    div.appendChild(left);
-    div.appendChild(right);
-
+        <div style="display:flex; justify-content:space-between; margin-top:15px;">
+           <div style="display:flex; gap:5px;"><input type="color" value="${u.color}" onchange="setColor(${i}, this.value)"><input type="color" value="${u.panelColor}" onchange="setPanelColor(${i}, this.value)"></div>
+           <div><button onclick="duplicateUnit(${i})">Clone</button><button onclick="deleteUnit(${i})" style="color:#ff5e5e">Delete</button></div>
+        </div>
+      `;
+      div.appendChild(panel);
+    }
     container.appendChild(div);
-
-    renderEffects(i);
-    updatePreview(i);
+    if(u.open) renderEffects(i); 
   });
-
   renderLog();
 }
 
-/* ---------------- TURN ---------------- */
-function snapshot(u) {
-  u.history.push(JSON.parse(JSON.stringify(u)));
+function renderEffects(i) {
+  const u = state.units[i];
+  const listDiv = document.getElementById(`effects-list-${i}`);
+  if (!listDiv) return;
+  listDiv.innerHTML = ""; 
+
+  u.effects.forEach((e, idx) => {
+    const remaining = (e.start + e.duration) - u.turn;
+    const isExpired = remaining <= 0;
+    const typeLabel = e.amount >= 0 ? 'HP' : 'DMG';
+    
+    const row = document.createElement("div");
+    row.className = `effectRow ${isExpired ? 'expired' : ''}`;
+    row.onclick = () => loadEffectToForm(i, idx);
+    row.innerHTML = `
+      <span>${e.name} (${Math.abs(e.amount)} ${typeLabel} for ${remaining} TURNS)</span>
+      <span>
+        <span class="duplicate" onclick="event.stopPropagation(); duplicateEffect(${i}, ${idx})">⧉</span>
+        <span class="delete" onclick="event.stopPropagation(); deleteEffect(${i}, ${idx})">×</span>
+      </span>
+    `;
+    listDiv.appendChild(row);
+  });
+}
+
+function applyEffect(i) {
+  const u = state.units[i];
+  const n = document.getElementById(`ename-${i}`).value || "Effect";
+  const c = document.getElementById(`ecause-${i}`).value || "Someone";
+  const v = (parseInt(document.getElementById(`eval-${i}`).value) || 0) * u.sign;
+  const d = parseInt(document.getElementById(`edur-${i}`).value) || 0;
+
+  u.effects.push({ name: n, cause: c, amount: v, duration: d, start: u.turn });
+  log(`${c} inflicted ${n} on ${u.name}. (${Math.abs(v)} ${v>=0?'HP':'DMG'} for ${d} TURNS)`);
+  render();
+}
+
+function handleEnter(e, nextId) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const nextEl = document.getElementById(nextId);
+        if (nextEl) { nextEl.tagName === 'BUTTON' ? nextEl.click() : nextEl.focus(); }
+    }
 }
 
 function nextTurn(i) {
   const u = state.units[i];
-  snapshot(u);
-
+  u.history.push(JSON.stringify({hp: u.hp, turn: u.turn, effects: [...u.effects.map(e => ({...e}))]}));
   u.turn++;
-  applyEffects(u);
-  checkExpired(u);
-
+  u.effects.forEach(e => {
+    if (u.turn > e.start && u.turn <= (e.start + e.duration)) u.hp = Math.max(0, u.hp + e.amount);
+  });
   log(`${u.name} → Turn ${u.turn}`);
   render();
 }
 
 function prevTurn(i) {
   const u = state.units[i];
+  if (u.history.length > 0) { Object.assign(u, JSON.parse(u.history.pop())); render(); }
+}
 
-  if (u.history.length > 0) {
-    Object.assign(u, u.history.pop());
-    log(`${u.name} rewound`);
-  }
+function toggleOpen(i) { state.units[i].open = !state.units[i].open; render(); }
+function toggleSign(i) { state.units[i].sign *= -1; render(); }
+function updatePreview(i) {
+  const u = state.units[i];
+  const n = document.getElementById(`ename-${i}`)?.value || "...";
+  const v = (parseInt(document.getElementById(`eval-${i}`)?.value) || 0) * u.sign;
+  const d = document.getElementById(`edur-${i}`)?.value || 0;
+  const target = document.getElementById(`preview-${i}`);
+  if (target) target.innerText = `${n} (${v>=0?"+":""}${v} ${v>=0?'HP':'DMG'} / ${d} turns)`;
+}
 
+function setName(i, v) { state.units[i].name = v; }
+function setHP(i, v) { state.units[i].hp = parseInt(v) || 0; render(); }
+function setMaxHP(i, v) { state.units[i].maxHp = parseInt(v) || 0; render(); }
+function setTurn(i, v) { state.units[i].turn = parseInt(v) || 0; render(); }
+function setColor(i, v) { state.units[i].color = v; render(); }
+function setPanelColor(i, v) { state.units[i].panelColor = v; render(); }
+function deleteEffect(i, ei) { state.units[i].effects.splice(ei, 1); render(); }
+function duplicateEffect(i, ei) { state.units[i].effects.push({...state.units[i].effects[ei], start: state.units[i].turn}); render(); }
+function deleteUnit(i) { state.units.splice(i, 1); render(); }
+function duplicateUnit(i) { state.units.push(JSON.parse(JSON.stringify(state.units[i]))); render(); }
+function drag(i, e) { e.dataTransfer.setData("idx", i); }
+function drop(i, e) {
+  const from = e.dataTransfer.getData("idx");
+  const moved = state.units.splice(from, 1)[0];
+  state.units.splice(i, 0, moved);
   render();
 }
-
-function setTurn(i, val) {
-  const u = state.units[i];
-  snapshot(u);
-  u.turn = parseInt(val) || 0;
-  render();
+function renderLog() {
+  const logBox = document.getElementById("log-list");
+  logBox.innerHTML = state.log.slice().reverse().map(l => `<div style="border-bottom:1px solid #222; padding:5px; font-size:0.8em;">${l}</div>`).join("");
 }
-
-/* ---------------- EFFECTS ---------------- */
-function addOrEditEffect(i) {
-  const u = state.units[i];
-
-  const name = document.getElementById(`ename-${i}`).value;
-  const cause = document.getElementById(`ecause-${i}`).value || "Unknown";
-  const val = (parseInt(document.getElementById(`eval-${i}`).value) || 0) * u.sign;
-  const dur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
-
-  const effect = { name, cause, amount: val, duration: dur, start: u.turn };
-
-  if (u.selectedEffect !== null) {
-    u.effects[u.selectedEffect] = effect;
-    log(`Edited ${name}`);
-  } else {
-    u.effects.push(effect);
-    log(`${cause} inflicted ${name} on ${u.name} (${val >=0?"+":""}${val} HP over ${dur} turns)`);
-  }
-
-  u.selectedEffect = null;
-  render();
-}
-
-function renderEffects(i) {
-  const u = state.units[i];
-  const div = document.getElementById(`effects-${i}`);
-  if (!div) return;
-
-  div.innerHTML = "";
-
-  u.effects.forEach((e, idx) => {
-    div.innerHTML += `
-      <div class="effectRow" onclick="selectEffect(${i}, ${idx})">
-        <span>${e.name} (${e.amount>=0?"+":""}${e.amount} over ${e.duration})</span>
-        <span>
-          <span onclick="event.stopPropagation(); duplicateEffect(${i}, ${idx})">⧉</span>
-          <span class="delete" onclick="event.stopPropagation(); deleteEffect(${i}, ${idx})">X</span>
-        </span>
-      </div>
-    `;
-  });
-}
-
-function selectEffect(i, idx) {
-  const u = state.units[i];
-  const e = u.effects[idx];
-
-  u.selectedEffect = idx;
-
+function loadEffectToForm(i, idx) {
+  const u = state.units[i]; const e = u.effects[idx];
   document.getElementById(`ename-${i}`).value = e.name;
   document.getElementById(`ecause-${i}`).value = e.cause;
   document.getElementById(`eval-${i}`).value = Math.abs(e.amount);
   document.getElementById(`edur-${i}`).value = e.duration;
-
   u.sign = e.amount >= 0 ? 1 : -1;
-
-  updatePreview(i);
-}
-
-function duplicateEffect(i, idx) {
-  const u = state.units[i];
-  u.effects.push({...u.effects[idx]});
-  log(`Duplicated effect`);
   render();
 }
-
-function deleteEffect(i, idx) {
-  const u = state.units[i];
-  log(`Removed ${u.effects[idx].name}`);
-  u.effects.splice(idx, 1);
-  render();
-}
-
-function toggleSign(i) {
-  const u = state.units[i];
-  u.sign *= -1;
-  updatePreview(i);
-}
-
-function applyEffects(u) {
-  u.effects.forEach(e => {
-    if (u.turn >= e.start && u.turn < e.start + e.duration) {
-      if (e.amount < 0 && u.tempHp > 0) {
-        const absorb = Math.min(u.tempHp, -e.amount);
-        u.tempHp -= absorb;
-        u.hp += (e.amount + absorb);
-      } else {
-        u.hp += e.amount;
-      }
-    }
-  });
-}
-
-function checkExpired(u) {
-  u.effects.forEach(e => {
-    if (u.turn === e.start + e.duration) {
-      log(`${e.name} expired on ${u.name}`);
-    }
-  });
-}
-
-/* ---------------- PREVIEW ---------------- */
-function updatePreview(i) {
-  const u = state.units[i];
-
-  const name = document.getElementById(`ename-${i}`)?.value || "Effect";
-  const cause = document.getElementById(`ecause-${i}`)?.value || "Someone";
-  const valRaw = parseInt(document.getElementById(`eval-${i}`)?.value) || 0;
-  const dur = parseInt(document.getElementById(`edur-${i}`)?.value) || 0;
-
-  const val = valRaw * u.sign;
-
-  document.getElementById(`preview-${i}`).innerText =
-    `${cause} inflicted ${name} on ${u.name} (${val>=0?"+":""}${val} HP over ${dur} turns)`;
-}
-
-/* ---------------- LOG ---------------- */
-function renderLog() {
-  const logDiv = document.getElementById("log");
-  logDiv.innerHTML = "<h3>History</h3>";
-
-  state.log.slice().reverse().forEach(e => {
-    logDiv.innerHTML += `<div>${e}</div>`;
-  });
-}
-
-/* ---------------- BASIC ---------------- */
-function setName(i,v){state.units[i].name=v}
-function setHP(i,v){state.units[i].hp=parseInt(v)||0}
-function setMaxHP(i,v){state.units[i].maxHp=parseInt(v)||0}
-function setTempHP(i,v){state.units[i].tempHp=parseInt(v)||0}
-function setColor(i,v){state.units[i].color=v}
-function setPanelColor(i,v){state.units[i].panelColor=v}
-
-function deleteUnit(i){
-  log(`Deleted ${state.units[i].name}`);
-  state.units.splice(i,1);
-  render();
-}
-
-function duplicateUnit(i){
-  state.units.splice(i+1,0,JSON.parse(JSON.stringify(state.units[i])));
-  log(`Duplicated unit`);
-  render();
-}
+addUnit();
 </script>
-
-</body>
-</html><!DOCTYPE html>
-<html>
-<head>
-<style>
-body {
-  font-family: sans-serif;
-  background: #111;
-  color: white;
-  margin: 0;
-}
-
-/* LAYOUT */
-.container {
-  display: flex;
-  height: 100vh;
-}
-
-#main {
-  flex: 2;
-  padding: 10px;
-  overflow-y: auto;
-}
-
-/* RESIZABLE LOG */
-#log {
-  width: 300px;
-  background: #000;
-  padding: 10px;
-  border-left: 2px solid #444;
-  overflow-y: auto;
-  resize: horizontal;
-}
-
-/* UNIT */
-.unit {
-  margin: 5px;
-  padding: 10px;
-  display: flex;
-  justify-content: space-between;
-}
-
-/* LEFT CONTENT */
-.unit-left {
-  flex: 1;
-}
-
-/* DRAG HANDLE */
-.drag {
-  cursor: grab;
-  padding: 0 5px;
-}
-
-/* TURN CONTROL (VERTICAL RIGHT) */
-.turnControl {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.turnBox {
-  width: 40px;
-  text-align: center;
-}
-
-/* PANEL */
-.panel {
-  margin-top: 5px;
-  padding: 10px;
-}
-
-/* EFFECT ROW */
-.effectRow {
-  display: flex;
-  justify-content: space-between;
-}
-
-/* DELETE BUTTON */
-.delete {
-  color: red;
-  cursor: pointer;
-}
-
-/* SECTION SPACING */
-.section {
-  margin-top: 15px;
-}
-
-/* PREVIEW */
-.preview {
-  font-size: 0.9em;
-  opacity: 0.8;
-  margin-top: 5px;
-}
-
-/* WRAP LOG TEXT */
-#log div {
-  word-wrap: break-word;
-  margin-bottom: 5px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-  <!-- MAIN -->
-  <div id="main">
-    <h1>TTRPG Tracker</h1>
-    <div>Version: 4</div>
-
-    <button onclick="addUnit()">+ Add Unit</button>
-    <div id="units"></div>
-  </div>
-
-  <!-- LOG -->
-  <div id="log">
-    <h3>History</h3>
-  </div>
-
-</div>
-
-<script>
-let state = {
-  units: [],
-  log: []
-};
-
-/* ---------------- ADD UNIT ---------------- */
-function addUnit() {
-  state.units.push({
-    name: "Unit",
-    hp: 10,
-    maxHp: 10,
-    turn: 0,
-    history: [],
-    effects: [],
-    open: false,
-    color: "#222",
-    panelColor: "#1a1a1a",
-    sign: 1
-  });
-  log("Added new unit");
-  render();
-}
-
-/* ---------------- LOG ---------------- */
-function log(text) {
-  state.log.push(text);
-}
-
-/* ---------------- RENDER ---------------- */
-function render() {
-  const container = document.getElementById("units");
-  container.innerHTML = "";
-
-  state.units.forEach((u, i) => {
-
-    const div = document.createElement("div");
-    div.className = "unit";
-    div.style.background = u.color;
-
-    /* LEFT */
-    const left = document.createElement("div");
-    left.className = "unit-left";
-
-    left.innerHTML = `
-      <div>
-        <span>${u.open ? "▼" : "▶"}</span>
-        <b>${u.name}</b>
-        HP: ${u.hp}/${u.maxHp}
-      </div>
-    `;
-
-    /* PANEL */
-    const panel = document.createElement("div");
-    panel.className = "panel";
-    panel.style.background = u.panelColor;
-    if (!u.open) panel.style.display = "none";
-
-    panel.innerHTML = `
-      Name: <input value="${u.name}" onchange="setName(${i}, this.value)"><br>
-
-      HP:
-      <input type="number" value="${u.hp}" onchange="setHP(${i}, this.value)">
-      /
-      <input type="number" value="${u.maxHp}" onchange="setMaxHP(${i}, this.value)">
-
-      <div style="text-align:right">
-        Outside Color:<br>
-        <input type="color" value="${u.color}" onchange="setColor(${i}, this.value)"><br>
-        Inside Color:<br>
-        <input type="color" value="${u.panelColor}" onchange="setPanelColor(${i}, this.value)">
-      </div>
-
-      <div class="section">
-        <b>Active Status Effects</b>
-        <div id="effects-${i}"></div>
-      </div>
-
-      <div class="section">
-        <b>Create New Status Effect</b><br>
-
-        <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
-
-        <input id="eval-${i}" type="number" placeholder="HP">
-        <input id="edur-${i}" type="number" placeholder="Turns"><br>
-
-        <input id="ename-${i}" placeholder="Name">
-        <input id="ecause-${i}" placeholder="Cause">
-
-        <button onclick="addEffect(${i})">Add</button>
-
-        <div class="preview" id="preview-${i}"></div>
-      </div>
-
-      <div class="section" style="display:flex; justify-content:space-between;">
-        <button onclick="duplicateUnit(${i})">Duplicate</button>
-        <button class="delete" onclick="deleteUnit(${i})">Delete</button>
-      </div>
-    `;
-
-    panel.onclick = (e) => e.stopPropagation();
-
-    left.appendChild(panel);
-
-    /* TURN CONTROL */
-    const turn = document.createElement("div");
-    turn.className = "turnControl";
-
-    turn.innerHTML = `
-      <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
-
-      <input class="turnBox" value="${u.turn}"
-        onclick="event.stopPropagation();"
-        onchange="setTurn(${i}, this.value)">
-
-      <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
-    `;
-
-    /* DRAG HANDLE */
-    const drag = document.createElement("div");
-    drag.className = "drag";
-    drag.innerText = "|||";
-
-    drag.draggable = true;
-
-    drag.ondragstart = (e) => {
-      e.dataTransfer.setData("index", i);
-    };
-
-    div.ondragover = (e) => e.preventDefault();
-
-    div.ondrop = (e) => {
-      const from = e.dataTransfer.getData("index");
-      const moved = state.units.splice(from, 1)[0];
-      state.units.splice(i, 0, moved);
-      render();
-    };
-
-    /* TOGGLE PANEL */
-    div.onclick = (e) => {
-      if (e.target.closest(".panel")) return;
-      u.open = !u.open;
-      render();
-    };
-
-    div.appendChild(left);
-    div.appendChild(turn);
-    div.appendChild(drag);
-
-    container.appendChild(div);
-
-    renderEffects(i);
-    updatePreview(i);
-  });
-
-  renderLog();
-}
-
-/* ---------------- TURN SYSTEM ---------------- */
-function snapshot(u) {
-  u.history.push(JSON.parse(JSON.stringify({
-    hp: u.hp,
-    turn: u.turn,
-    effects: u.effects
-  })));
-}
-
-function nextTurn(i) {
-  const u = state.units[i];
-  snapshot(u);
-
-  u.turn++;
-
-  applyEffects(u);
-
-  checkExpired(u);
-
-  log(`${u.name} advanced to turn ${u.turn}`);
-  render();
-}
-
-function prevTurn(i) {
-  const u = state.units[i];
-
-  if (u.history.length > 0) {
-    const prev = u.history.pop();
-    Object.assign(u, prev);
-    log(`${u.name} rewound to turn ${u.turn}`);
-  }
-
-  render();
-}
-
-function setTurn(i, val) {
-  const u = state.units[i];
-  snapshot(u);
-
-  u.turn = parseInt(val) || 0;
-  log(`${u.name} set to turn ${u.turn}`);
-  render();
-}
-
-/* ---------------- EFFECTS ---------------- */
-function applyEffects(u) {
-  u.effects.forEach(e => {
-    if (u.turn >= e.start && u.turn < e.start + e.duration) {
-      u.hp += e.amount;
-    }
-  });
-}
-
-function checkExpired(u) {
-  u.effects.forEach(e => {
-    if (u.turn === e.start + e.duration) {
-      log(`${e.name} expired on ${u.name}`);
-    }
-  });
-}
-
-function addEffect(i) {
-  const u = state.units[i];
-
-  const name = document.getElementById(`ename-${i}`).value;
-  const cause = document.getElementById(`ecause-${i}`).value || "Unknown";
-  const valRaw = parseInt(document.getElementById(`eval-${i}`).value);
-  const dur = parseInt(document.getElementById(`edur-${i}`).value);
-
-  const val = valRaw * u.sign;
-
-  u.effects.push({
-    name,
-    amount: val,
-    duration: dur,
-    start: u.turn,
-    cause
-  });
-
-  log(`${cause} inflicted ${name} on ${u.name} (${val} HP over ${dur} turns)`);
-
-  render();
-}
-
-function toggleSign(i) {
-  const u = state.units[i];
-  u.sign *= -1;
-  render();
-}
-
-function deleteEffect(i, index) {
-  const u = state.units[i];
-  log(`${u.effects[index].name} cleansed from ${u.name}`);
-  u.effects.splice(index, 1);
-  render();
-}
-
-/* ---------------- EFFECT RENDER ---------------- */
-function renderEffects(i) {
-  const u = state.units[i];
-  const div = document.getElementById(`effects-${i}`);
-  if (!div) return;
-
-  div.innerHTML = "";
-
-  u.effects.forEach((e, idx) => {
-    const left = (e.start + e.duration) - u.turn;
-
-    div.innerHTML += `
-      <div class="effectRow">
-        <span>
-          ${e.name} (${e.amount} HP over ${e.duration} turns, ${left} left) [${e.cause}]
-        </span>
-        <span class="delete" onclick="deleteEffect(${i}, ${idx})">X</span>
-      </div>
-    `;
-  });
-}
-
-/* ---------------- PREVIEW ---------------- */
-function updatePreview(i) {
-  const u = state.units[i];
-
-  const name = document.getElementById(`ename-${i}`)?.value || "Effect";
-  const cause = document.getElementById(`ecause-${i}`)?.value || "Someone";
-  const valRaw = parseInt(document.getElementById(`eval-${i}`)?.value) || 0;
-  const dur = parseInt(document.getElementById(`edur-${i}`)?.value) || 0;
-
-  const val = valRaw * u.sign;
-
-  const preview = document.getElementById(`preview-${i}`);
-  if (!preview) return;
-
-  preview.innerText =
-    `${cause} inflicted ${name} on ${u.name} (${val} HP over ${dur} turns)`;
-}
-
-/* ---------------- LOG ---------------- */
-function renderLog() {
-  const logDiv = document.getElementById("log");
-  logDiv.innerHTML = "<h3>History</h3>";
-
-  state.log.slice().reverse().forEach(entry => {
-    logDiv.innerHTML += `<div>${entry}</div>`;
-  });
-}
-
-/* ---------------- BASIC ---------------- */
-function setName(i, val) { state.units[i].name = val; }
-function setHP(i, val) { state.units[i].hp = parseInt(val); }
-function setMaxHP(i, val) { state.units[i].maxHp = parseInt(val); }
-function setColor(i, val) { state.units[i].color = val; }
-function setPanelColor(i, val) { state.units[i].panelColor = val; }
-
-function deleteUnit(i) {
-  log(`Deleted ${state.units[i].name}`);
-  state.units.splice(i, 1);
-  render();
-}
-
-function duplicateUnit(i) {
-  const copy = JSON.parse(JSON.stringify(state.units[i]));
-  state.units.splice(i + 1, 0, copy);
-  log(`Duplicated ${copy.name}`);
-  render();
-}
-</script>
-
 </body>
 </html>
