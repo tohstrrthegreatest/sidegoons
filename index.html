@@ -10,19 +10,19 @@
         #divider { width:5px; cursor:col-resize; background:#444; }
         #divider:hover { background:#666; }
 
-        .unit { margin:5px; padding:10px; display:flex; justify-content:space-between; background:#222; border-radius: 4px; cursor: pointer; }
+        .unit { margin:5px; padding:10px; display:flex; justify-content:space-between; background:#222; border-radius: 4px; border: 1px solid transparent; }
         .unit-left { flex:1; }
-        .rightCol { display:flex; flex-direction:column; align-items:center; gap: 4px; }
-        .turnBox { width:40px; text-align:center; background: #333; color: white; border: 1px solid #555; }
-        .drag { cursor:grab; margin-left:4px; color: #888; }
-        .panel { margin-top:10px; padding:10px; background:#1a1a1a; border-radius: 4px; display:none; cursor: default; }
-        .effectRow { display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px; background: #2a2a2a; padding: 5px; }
-        .delete { color:#ff4444; cursor:pointer; border: 1px solid #ff4444; background: none; padding: 2px 5px; }
-        .section { margin-top:10px; border-top: 1px solid #333; pt: 5px; }
-        .preview { opacity:0.8; font-size:0.9em; color: #aaa; min-height: 1.2em; }
-        .grid { display:grid; grid-template-columns: 1fr 1fr auto 1fr 1fr; gap:5px; margin-bottom: 5px; }
-        input.half { width:60px; }
-        input.quarter { width:40px; }
+        .rightCol { display:flex; flex-direction:column; align-items:center; gap: 4px; padding-left: 10px; }
+        .panel { margin-top:10px; padding:10px; background:#1a1a1a; border-radius: 4px; cursor: default; }
+        .effectRow { display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px; background: #2a2a2a; padding: 5px; border-radius: 3px; }
+        .delete { color:#ff4444; cursor:pointer; border: 1px solid #ff4444; background: none; padding: 2px 5px; border-radius: 3px; }
+        .delete:hover { background: rgba(255,68,68,0.1); }
+        .section { margin-top:10px; border-top: 1px solid #333; padding-top: 8px; }
+        .grid { display:grid; grid-template-columns: 1.5fr 1fr auto 0.6fr 0.6fr; gap:5px; margin-bottom: 5px; }
+        
+        button { cursor: pointer; background: #444; color: white; border: 1px solid #555; padding: 4px 8px; border-radius: 3px; }
+        button:hover { background: #555; }
+        input { background: #333; color: white; border: 1px solid #555; padding: 3px; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -30,7 +30,7 @@
 <div class="container">
   <div id="main">
     <h1>TTRPG Tracker</h1>
-    <div style="margin-bottom:15px; display: flex; gap: 5px; flex-wrap: wrap;">
+    <div style="margin-bottom:15px; display: flex; gap: 8px; flex-wrap: wrap;">
       <button onclick="addUnit()">+ Add Unit</button>
       <button onclick="clearUnits()">Clear All Units</button>
       <button onclick="clearAllEffects()">Clear All Status Effects</button>
@@ -42,9 +42,9 @@
   <div id="divider"></div>
 
   <div id="log">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <h3>History</h3>
-        <input type="color" id="outlineColor" value="#ffffff">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 style="margin:0">History</h3>
+        <input type="color" id="outlineColor" value="#ffffff" onchange="updateOutlineColor(this.value)">
     </div>
     <button onclick="clearHistory()" style="width: 100%; margin-bottom: 10px;">Clear History</button>
     <div id="logContent"></div>
@@ -61,16 +61,14 @@ let state = {
 /* ---------------- CORE ACTIONS ---------------- */
 function addUnit() {
   state.units.push({
+    id: Date.now() + Math.random(),
     name: "New Unit",
     hp: 10,
     maxHp: 10,
     turn: 0,
     effects: [],
     open: false,
-    color: "#222",
-    panelColor: "#1a1a1a",
-    sign: 1,
-    selectedEffect: null
+    sign: -1 // Set to -1 by default for damage
   });
   log("Added new unit");
   render();
@@ -81,6 +79,11 @@ function log(text) {
   renderLog();
 }
 
+function updateOutlineColor(val) {
+    state.outlineColor = val;
+    render();
+}
+
 /* ---------------- RENDERING ---------------- */
 function render() {
   const container = document.getElementById("units");
@@ -89,74 +92,60 @@ function render() {
   state.units.forEach((u, i) => {
     const div = document.createElement("div");
     div.className = "unit";
-    div.style.background = u.color;
-    div.onclick = () => { u.open = !u.open; render(); };
+    div.style.borderColor = u.open ? state.outlineColor : 'transparent';
+    
+    // Header Click Logic
+    div.onclick = (e) => {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+            u.open = !u.open; 
+            render();
+        }
+    };
 
-    // Left Side
-    const left = document.createElement("div");
-    left.className = "unit-left";
-    left.innerHTML = `<div><span>${u.open ? "▼" : "▶"}</span> <b>${u.name}</b> — HP: ${u.hp}/${u.maxHp}</div>`;
-
-    // The Expandable Panel
-    const panel = document.createElement("div");
-    panel.className = "panel";
-    panel.style.display = u.open ? "block" : "none";
-    panel.style.background = u.panelColor;
-    panel.onclick = (e) => e.stopPropagation(); // Prevents closing when clicking inside
-
-    panel.innerHTML = `
-      <div class="section">
-          Name: <input class="half" value="${u.name}" oninput="updateUnitField(${i}, 'name', this.value)">
-          HP: <input class="quarter" type="number" value="${u.hp}" oninput="updateUnitField(${i}, 'hp', this.value)">
-          / <input class="quarter" type="number" value="${u.maxHp}" oninput="updateUnitField(${i}, 'maxHp', this.value)">
-      </div>
-      <div class="section">
-          <b>Effects</b>
-          <div id="effects-list-${i}"></div>
-          <div class="grid">
-              <input id="ename-${i}" placeholder="Effect Name">
-              <input id="ecause-${i}" placeholder="Cause">
-              <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
-              <input id="eval-${i}" type="number" class="quarter" placeholder="HP">
-              <input id="edur-${i}" type="number" class="quarter" placeholder="Turns">
+    div.innerHTML = `
+      <div class="unit-left">
+        <div><span>${u.open ? "▼" : "▶"}</span> <b>${u.name}</b> — HP: ${u.hp}/${u.maxHp}</div>
+        
+        <div class="panel" style="display: ${u.open ? 'block' : 'none'}">
+          <div class="section">
+              Name: <input style="width:120px" value="${u.name}" oninput="state.units[${i}].name = this.value">
+              HP: <input style="width:40px" type="number" value="${u.hp}" oninput="state.units[${i}].hp = parseInt(this.value) || 0">
+              / <input style="width:40px" type="number" value="${u.maxHp}" oninput="state.units[${i}].maxHp = parseInt(this.value) || 0">
           </div>
-          <button onclick="addEffect(${i})">Apply Effect</button>
-      </div>
-      <div class="section" style="display:flex; justify-content: space-between; margin-top: 10px;">
-          <button onclick="duplicateUnit(${i})">Duplicate</button>
-          <button class="delete" onclick="deleteUnit(${i})">Delete Unit</button>
-      </div>
-    `;
-
-    left.appendChild(panel);
-    div.appendChild(left);
-
-    // Right Side (Turn Controls)
-    const right = document.createElement("div");
-    right.className = "rightCol";
-    right.onclick = (e) => e.stopPropagation();
-    right.innerHTML = `
-        <button onclick="changeTurn(${i}, 1)">+</button>
-        <div style="font-size: 0.8em;">Turn ${u.turn}</div>
-        <button onclick="changeTurn(${i}, -1)">-</button>
-    `;
-    
-    div.appendChild(right);
-    container.appendChild(div);
-    
-    if(u.open) renderUnitEffects(i);
-  });
-}
-
-function renderUnitEffects(uIdx) {
-    const list = document.getElementById(`effects-list-${uIdx}`);
-    const u = state.units[uIdx];
-    list.innerHTML = u.effects.map((e, eIdx) => `
-        <div class="effectRow">
-            <span>${e.name} (${e.dmg > 0 ? '+':''}${e.dmg} HP, ${e.duration} turns)</span>
-            <button class="delete" onclick="deleteEffect(${uIdx}, ${eIdx})">X</button>
+          <div class="section">
+              <b>Effects</b>
+              <div id="effects-list-${i}" style="margin: 5px 0;">
+                ${u.effects.map((e, eIdx) => `
+                    <div class="effectRow">
+                        <span style="font-size: 0.9em;">${e.name} <i style="color:#aaa">(${e.cause})</i>: <b>${e.dmg > 0 ? '+':''}${e.dmg} HP</b> (${e.duration} turns)</span>
+                        <button class="delete" onclick="deleteEffect(${i}, ${eIdx})">X</button>
+                    </div>
+                `).join('')}
+              </div>
+              <div class="grid">
+                  <input id="ename-${i}" placeholder="Effect">
+                  <input id="ecause-${i}" placeholder="Cause">
+                  <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
+                  <input id="eval-${i}" type="number" placeholder="HP">
+                  <input id="edur-${i}" type="number" placeholder="Turns">
+              </div>
+              <button style="width:100%; margin-top:5px;" onclick="addEffect(${i})">Apply Effect</button>
+          </div>
+          <div class="section" style="display:flex; justify-content: space-between; margin-top: 10px;">
+              <button onclick="duplicateUnit(${i})">Duplicate</button>
+              <button class="delete" onclick="deleteUnit(${i})">Delete Unit</button>
+          </div>
         </div>
-    `).join('');
+      </div>
+
+      <div class="rightCol">
+          <button onclick="changeTurn(${i}, 1)">+</button>
+          <div style="font-size: 0.8em; font-weight: bold;">Turn ${u.turn}</div>
+          <button onclick="changeTurn(${i}, -1)">-</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
 }
 
 function renderLog() {
@@ -167,24 +156,28 @@ function renderLog() {
 }
 
 /* ---------------- LOGIC FUNCTIONS ---------------- */
-function updateUnitField(i, field, val) {
-    state.units[i][field] = field === 'name' ? val : parseInt(val);
-}
-
 function changeTurn(i, amt) {
     state.units[i].turn = Math.max(0, state.units[i].turn + amt);
-    log(`${state.units[i].name} turn changed to ${state.units[i].turn}`);
+    log(`${state.units[i].name} turn updated to ${state.units[i].turn}`);
     render();
 }
 
 function addEffect(i) {
     const name = document.getElementById(`ename-${i}`).value;
+    const cause = document.getElementById(`ecause-${i}`).value || "Unknown";
     const dmg = parseInt(document.getElementById(`eval-${i}`).value) || 0;
     const dur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
+    
     if(!name) return;
 
-    state.units[i].effects.push({ name, dmg: dmg * state.units[i].sign, duration: dur });
-    log(`Effect "${name}" added to ${state.units[i].name}`);
+    state.units[i].effects.push({ 
+        name, 
+        cause, 
+        dmg: dmg * state.units[i].sign, 
+        duration: dur 
+    });
+    
+    log(`Effect "${name}" applied to ${state.units[i].name}`);
     render();
 }
 
@@ -200,18 +193,21 @@ function toggleSign(i) {
 
 function duplicateUnit(i) {
     const copy = JSON.parse(JSON.stringify(state.units[i]));
+    copy.id = Date.now() + Math.random();
     state.units.splice(i + 1, 0, copy);
+    log(`Duplicated ${state.units[i].name}`);
     render();
 }
 
 function deleteUnit(i) {
+    log(`Removed ${state.units[i].name}`);
     state.units.splice(i, 1);
     render();
 }
 
-function clearUnits() { state.units = []; render(); }
-function clearAllEffects() { state.units.forEach(u => u.effects = []); render(); }
-function resetAllHP() { state.units.forEach(u => u.hp = u.maxHp); render(); }
+function clearUnits() { if(confirm("Delete all units?")) { state.units = []; log("Cleared all units"); render(); } }
+function clearAllEffects() { state.units.forEach(u => u.effects = []); log("Cleared all effects"); render(); }
+function resetAllHP() { state.units.forEach(u => u.hp = u.maxHp); log("Reset all HP"); render(); }
 function clearHistory() { state.log = []; renderLog(); }
 
 /* ---------------- RESIZE LOGIC ---------------- */
@@ -224,7 +220,7 @@ document.onmouseup = () => isResizing = false;
 document.onmousemove = (e) => {
     if (!isResizing) return;
     const newWidth = window.innerWidth - e.clientX;
-    logBox.style.width = Math.max(100, newWidth) + "px";
+    if(newWidth > 100 && newWidth < 600) logBox.style.width = newWidth + "px";
 };
 
 // Initial Render
