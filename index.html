@@ -9,12 +9,12 @@ body { font-family: sans-serif; background:#111; color:white; margin:0; }
 #divider { width:5px; cursor:col-resize; background:#444; }
 #divider:hover { background:#666; }
 
-.unit { margin:5px; padding:10px; display:flex; justify-content:space-between; }
+.unit { margin:5px; padding:10px; display:flex; justify-content:space-between; background:#222; }
 .unit-left { flex:1; }
 .rightCol { display:flex; flex-direction:column; align-items:center; }
 .turnBox { width:30px; text-align:center; }
 .drag { cursor:grab; margin-left:4px; }
-.panel { margin-top:5px; padding:5px; }
+.panel { margin-top:5px; padding:5px; background:#1a1a1a; display:none; }
 .effectRow { display:flex; justify-content:space-between; cursor:pointer; }
 .delete { color:red; cursor:pointer; }
 .section { margin-top:10px; }
@@ -28,136 +28,310 @@ input.quarter { width:25px; }
 <body>
 
 <div class="container">
-
-<div id="main">
-  <h1>TTRPG Tracker</h1>
-  <div style="margin-bottom:8px;">
-    Version: 6 &nbsp;
-    <button onclick="addUnit()">+ Add Unit</button>
-    <button onclick="clearUnits()">Clear All Units</button>
-    <button onclick="clearAllEffects()">Clear All Status Effects</button>
-    <button onclick="resetAllHP()">Reset HP</button>
+  <div id="main">
+    <h1>TTRPG Tracker</h1>
+    <div style="margin-bottom:8px;">
+      Version: 6 &nbsp;
+      <button onclick="addUnit()">+ Add Unit</button>
+      <button onclick="clearUnits()">Clear All Units</button>
+      <button onclick="clearAllEffects()">Clear All Status Effects</button>
+      <button onclick="resetAllHP()">Reset HP</button>
+    </div>
+    <div id="units"></div>
   </div>
-  <div id="units"></div>
+
+  <div id="divider"></div>
+
+  <div id="log">
+    <h3>History
+      <input type="color" id="outlineColor" value="#ffffff" style="float:right;">
+      <button onclick="clearHistory()">Clear History</button>
+    </h3>
+    <div id="logContent" style="max-height:100%; overflow-y:auto;"></div>
+  </div>
 </div>
-
-<div id="divider"></div>
-
-<div id="log">
-  <h3>History
-    <input type="color" id="outlineColor" value="#ffffff" style="float:right;">
-    <button onclick="clearHistory()">Clear History</button>
-  </h3>
-  <div id="logContent" style="max-height:100%; overflow-y:auto;"></div>
-</div>
-
-</div>
-
 <script>
-let state={units:[],log:[],selected:null,multiSelect:false,outlineColor:'#ffffff'};
+let state = {
+  units: [],          // Array of units
+  log: [],            // History log
+  selected: null,     // Selected history item
+  multiSelect: false, // Multi-select toggle
+  outlineColor: '#ffffff'
+};
 
-/* ---------------- GLOBAL ---------------- */
-function addUnit(){state.units.push({name:"Unit",hp:10,maxHp:10,turn:0,effects:[],open:false,color:"#222",panelColor:"#1a1a1a",sign:1,selectedEffect:null});log("Added new unit");render();}
-function clearUnits(){state.units=[];log("Cleared all units");render();}
-function clearAllEffects(){state.units.forEach(u=>u.effects=[]);log("Cleared all effects");render();}
-function resetAllHP(){state.units.forEach(u=>u.hp=u.maxHp);log("Reset all HP");render();}
-document.getElementById("outlineColor").oninput=(e)=>state.outlineColor=e.target.value;
+/* ---------------- GLOBAL ACTIONS ---------------- */
+function addUnit() {
+  state.units.push({
+    name: "Unit",
+    hp: 10,
+    maxHp: 10,
+    turn: 0,
+    effects: [],
+    open: false,
+    color: "#222",
+    panelColor: "#1a1a1a",
+    sign: 1,              // +/- for new effect
+    selectedEffect: null, // Editing effect
+    history: []           // Snapshots for undo
+  });
+  log("Added new unit");
+  render();
+}
+
+function clearUnits() {
+  state.units = [];
+  log("Cleared all units");
+  render();
+}
+
+function clearAllEffects() {
+  state.units.forEach(u => u.effects = []);
+  log("Cleared all effects");
+  render();
+}
+
+function resetAllHP() {
+  state.units.forEach(u => u.hp = u.maxHp);
+  log("Reset all HP");
+  render();
+}
 
 /* ---------------- LOG ---------------- */
-function log(text){state.log.push(text);renderLog();}
-function renderLog(){const c=document.getElementById("logContent");c.innerHTML="";state.log.slice().reverse().forEach((e,i)=>{const div=document.createElement("div");div.innerText=e; if(state.selectedLog===i) div.style.outline="2px solid "+state.outlineColor;c.appendChild(div);});}
+function log(text) {
+  state.log.push(text);
+  renderLog();
+}
+
+function renderLog() {
+  const c = document.getElementById("logContent");
+  c.innerHTML = "";
+  state.log.slice().reverse().forEach((e, idx) => {
+    const div = document.createElement("div");
+    div.innerText = e;
+    if (state.selected === idx) div.style.outline = "2px solid " + state.outlineColor;
+    c.appendChild(div);
+  });
+}
 
 /* ---------------- UNITS ---------------- */
-function render(){
-const container=document.getElementById("units");container.innerHTML="";
-state.units.forEach((u,i)=>{
-  const div=document.createElement("div");div.className="unit";div.style.background=u.color;
-  const left=document.createElement("div");left.className="unit-left";
-  left.innerHTML=`<div><span>${u.open?"▼":"▶"}</span> <b>${u.name}</b> HP:${u.hp}/${u.maxHp}</div>`;
-  const panel=document.createElement("div");panel.className="panel";panel.style.background=u.panelColor;
-  if(!u.open) panel.style.display="none";
-  panel.innerHTML=`
-    Name:<input class="half" value="${u.name}" oninput="setName(${i},this.value)">
-    HP:<input class="quarter" type="number" value="${u.hp}" oninput="setHP(${i},this.value)">
-    /<input class="quarter" type="number" value="${u.maxHp}" oninput="setMaxHP(${i},this.value)">
-    <div style="text-align:right">Outside:<input type="color" value="${u.color}" onchange="setColor(${i},this.value)"> Inside:<input type="color" value="${u.panelColor}" onchange="setPanelColor(${i},this.value)"></div>
-    <div class="section"><b>Active Status Effects</b><div id="effects-${i}"></div></div>
-    <div class="section"><b>Create / Edit Status Effect</b>
-      <div class="grid">
-        <input class="half" id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})">
-        <input class="half" id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})">
-        <button onclick="toggleSign(${i})">${u.sign===1?"+":"-"}</button>
-        <input class="quarter" id="eval-${i}" type="number" placeholder="HP" oninput="updatePreview(${i})">
-        <input class="quarter" id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})">
+function render() {
+  const container = document.getElementById("units");
+  container.innerHTML = "";
+
+  state.units.forEach((u, i) => {
+    const div = document.createElement("div");
+    div.className = "unit";
+    div.style.background = u.color;
+
+    // LEFT PANEL
+    const left = document.createElement("div");
+    left.className = "unit-left";
+    left.innerHTML = `<div><span>${u.open ? "▼" : "▶"}</span> <b>${u.name}</b> HP:${u.hp}/${u.maxHp}</div>`;
+
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.style.background = u.panelColor;
+    if (!u.open) panel.style.display = "none";
+
+    panel.innerHTML = `
+      Name:<input class="half" value="${u.name}" oninput="setName(${i},this.value)">
+      HP:<input class="quarter" type="number" value="${u.hp}" oninput="setHP(${i},this.value)">
+      /<input class="quarter" type="number" value="${u.maxHp}" oninput="setMaxHP(${i},this.value)">
+      <div style="text-align:right">Outside:<input type="color" value="${u.color}" onchange="setColor(${i},this.value)">
+      Inside:<input type="color" value="${u.panelColor}" onchange="setPanelColor(${i},this.value)"></div>
+      <div class="section"><b>Active Status Effects</b><div id="effects-${i}"></div></div>
+      <div class="section"><b>Create / Edit Status Effect</b>
+        <div class="grid">
+          <input class="half" id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})">
+          <input class="half" id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})">
+          <button onclick="toggleSign(${i})">${u.sign===1 ? "+" : "-"}</button>
+          <input class="quarter" id="eval-${i}" type="number" placeholder="HP" oninput="updatePreview(${i})">
+          <input class="quarter" id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})">
+        </div>
+        <button onclick="addOrEditEffect(${i})">Apply / Add New</button>
+        <div class="section"><b>Preview</b><div class="preview" id="preview-${i}"></div></div>
       </div>
-      <button onclick="addOrEditEffect(${i})">Apply / Add New</button>
-      <div class="section"><b>Preview</b><div class="preview" id="preview-${i}"></div></div>
-    </div>
-    <div class="section" style="display:flex;justify-content:space-between;">
-      <button onclick="duplicateUnit(${i})">Duplicate</button>
-      <button class="delete" onclick="deleteUnit(${i})">Delete</button>
-    </div>
-  `;
-  panel.onclick=(e)=>e.stopPropagation();
-  left.appendChild(panel);
+      <div class="section" style="display:flex;justify-content:space-between;">
+        <button onclick="duplicateUnit(${i})">Duplicate</button>
+        <button class="delete" onclick="deleteUnit(${i})">Delete</button>
+      </div>
+    `;
 
-  const right=document.createElement("div");right.className="rightCol";
-  right.innerHTML=`
-    <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
-    <div style="display:flex;align-items:center;gap:4px;">
-      <input class="turnBox" value="${u.turn}" onclick="event.stopPropagation();" onchange="setTurn(${i},this.value)">
-      <div class="drag">|||</div>
-    </div>
-    <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
-  `;
-  right.querySelector(".drag").draggable=true;
-  right.querySelector(".drag").ondragstart=(e)=>{e.dataTransfer.setData("index",i);};
-  div.ondragover=(e)=>e.preventDefault();
-  div.ondrop=(e)=>{const from=e.dataTransfer.getData("index");const moved=state.units.splice(from,1)[0];state.units.splice(i,0,moved);render();};
+    panel.onclick = (e) => e.stopPropagation();
+    left.appendChild(panel);
 
-  div.onclick=(e)=>{if(e.target.closest(".panel"))return;u.open=!u.open;render();};
-  div.appendChild(left);div.appendChild(right);container.appendChild(div);
+    // RIGHT COLUMN (turns + drag)
+    const right = document.createElement("div");
+    right.className = "rightCol";
+    right.innerHTML = `
+      <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input class="turnBox" value="${u.turn}" onclick="event.stopPropagation();" onchange="setTurn(${i},this.value)">
+        <div class="drag">|||</div>
+      </div>
+      <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
+    `;
 
-  renderEffects(i);updatePreview(i);
-});renderLog();}
+    // Drag handle for reordering units
+    right.querySelector(".drag").draggable = true;
+    right.querySelector(".drag").ondragstart = (e) => { e.dataTransfer.setData("index", i); };
+    div.ondragover = (e) => e.preventDefault();
+    div.ondrop = (e) => {
+      const from = e.dataTransfer.getData("index");
+      const moved = state.units.splice(from, 1)[0];
+      state.units.splice(i, 0, moved);
+      render();
+    };
 
-/* ---------------- TURN ---------------- */
-function snapshot(u){u.history=u.history||[];u.history.push(JSON.parse(JSON.stringify(u)));}
-function nextTurn(i){const u=state.units[i];snapshot(u);u.turn++;applyEffects(u);checkExpired(u);log(`${u.name} → Turn ${u.turn}`);render();}
-function prevTurn(i){const u=state.units[i];if(u.history&&u.history.length>0){Object.assign(u,u.history.pop());log(`${u.name} rewound`);}render();}
-function setTurn(i,v){const u=state.units[i];snapshot(u);u.turn=parseInt(v)||0;render();}
+    div.onclick = (e) => { if (e.target.closest(".panel")) return; u.open = !u.open; render(); };
+    div.appendChild(left); div.appendChild(right);
+    container.appendChild(div);
 
-/* ---------------- EFFECTS ---------------- */
-function addOrEditEffect(i){const u=state.units[i];const name=document.getElementById(`ename-${i}`).value;const cause=document.getElementById(`ecause-${i}`).value||"Unknown";const val=(parseInt(document.getElementById(`eval-${i}`).value)||0)*u.sign;const dur=parseInt(document.getElementById(`edur-${i}`).value)||0;const effect={name,cause,amount:val,duration:dur,start:u.turn};if(u.selectedEffect!==null){u.effects[u.selectedEffect]=effect;log(`Edited ${name}`);}else{u.effects.push(effect);log(`${cause} inflicted ${name} on ${u.name} (${val>=0?"+":""}${val} HP over ${dur} turns)`);}u.selectedEffect=null;render();}
-function renderEffects(i){const u=state.units[i];const div=document.getElementById(`effects-${i}`);if(!div)return;div.innerHTML="";u.effects.forEach((e,idx)=>{div.innerHTML+=`<div class="effectRow" onclick="selectEffect(${i},${idx})"><span>${e.name} (${e.amount>=0?"+":""}${e.amount} over ${e.duration})</span><span><span onclick="event.stopPropagation(); duplicateEffect(${i},${idx})">⧉</span> <span class="delete" onclick="event.stopPropagation(); deleteEffect(${i},${idx})">X</span></span></div>`;});}
-function selectEffect(i,idx){const u=state.units[i];const e=u.effects[idx];u.selectedEffect=idx;document.getElementById(`ename-${i}`).value=e.name;document.getElementById(`ecause-${i}`).value=e.cause;document.getElementById(`eval-${i}`).value=Math.abs(e.amount);document.getElementById(`edur-${i}`).value=e.duration;u.sign=e.amount>=0?1:-1;updatePreview(i);}
-function duplicateEffect(i,idx){const u=state.units[i];u.effects.push({...u.effects[idx]});log("Duplicated effect");render();}
-function deleteEffect(i,idx){const u=state.units[i];log(`Removed ${u.effects[idx].name}`);u.effects.splice(idx,1);render();}
-function toggleSign(i){const u=state.units[i];u.sign*=-1;updatePreview(i);}
-function applyEffects(u){u.effects.forEach(e=>{if(u.turn>=e.start&&u.turn<e.start+e.duration){u.hp+=e.amount;}});}
-function checkExpired(u){u.effects.forEach(e=>{if(u.turn===e.start+e.duration){log(`${e.name} expired on ${u.name}`);}});}
-function updatePreview(i){const u=state.units[i];const name=document.getElementById(`ename-${i}`)?.value||"Effect";const cause=document.getElementById(`ecause-${i}`)?.value||"Someone";const valRaw=parseInt(document.getElementById(`eval-${i}`)?.value)||0;const dur=parseInt(document.getElementById(`edur-${i}`)?.value)||0;const val=valRaw*u.sign;document.getElementById(`preview-${i}`).innerText=`${cause} inflicted ${name} on ${u.name} (${val>=0?"+":""}${val} HP over ${dur} turns)`;}
+    renderEffects(i);
+    updatePreview(i);
+  });
 
-/* ---------------- BASIC ---------------- */
-function setName(i,v){state.units[i].name=v;render();}
-function setHP(i,v){state.units[i].hp=parseInt(v)||0;render();}
-function setMaxHP(i,v){state.units[i].maxHp=parseInt(v)||0;render();}
-function setColor(i,v){state.units[i].color=v;render();}
-function setPanelColor(i,v){state.units[i].panelColor=v;render();}
-function deleteUnit(i){log(`Deleted ${state.units[i].name}`);state.units.splice(i,1);render();}
-function duplicateUnit(i){state.units.splice(i+1,0,JSON.parse(JSON.stringify(state.units[i])));log("Duplicated unit");render();}
+  renderLog();
+}
+</script>
+<script>
+/* ---------------- UNIT EDIT FUNCTIONS ---------------- */
+function setName(i,val){ state.units[i].name=val; render(); }
+function setHP(i,val){ state.units[i].hp=parseInt(val)||0; render(); }
+function setMaxHP(i,val){ state.units[i].maxHp=parseInt(val)||0; render(); }
+function setColor(i,val){ state.units[i].color=val; render(); }
+function setPanelColor(i,val){ state.units[i].panelColor=val; render(); }
+function setTurn(i,val){ state.units[i].turn=parseInt(val)||0; render(); }
+function nextTurn(i){ state.units[i].turn++; render(); }
+function prevTurn(i){ state.units[i].turn=Math.max(0,state.units[i].turn-1); render(); }
 
-/* ---------------- DRAG DIVIDER ---------------- */
-const divider=document.getElementById("divider");
-const logDiv=document.getElementById("log");
-const main=document.getElementById("main");
-let dragging=false;
-divider.addEventListener("mousedown",()=>{dragging=true;});
-document.addEventListener("mousemove",(e)=>{if(!dragging)return;const total=window.innerWidth;const newLogW=total-e.clientX;logDiv.style.width=newLogW+"px";main.style.flex="none";main.style.width=e.clientX+"px";});
-document.addEventListener("mouseup",()=>{dragging=false;});
+/* ---------------- STATUS EFFECT FUNCTIONS ---------------- */
+function toggleSign(i){
+  state.units[i].sign *= -1;
+  render();
+}
 
-/* ---------------- CLEAR HISTORY ---------------- */
-function clearHistory(){state.log=[];renderLog();}
+function updatePreview(i){
+  const eName = document.getElementById(`ename-${i}`).value;
+  const eCause = document.getElementById(`ecause-${i}`).value;
+  const eVal = parseInt(document.getElementById(`eval-${i}`).value)||0;
+  const eDur = parseInt(document.getElementById(`edur-${i}`).value)||0;
+  const sign = state.units[i].sign;
+  const preview = document.getElementById(`preview-${i}`);
+  if(!eName) { preview.innerText=""; return; }
+  preview.innerText=`(${eCause||"Unknown"}) inflicted ${eName} on ${state.units[i].name} for ${eDur} turns (${sign*eVal>0 ? "+" : ""}${sign*eVal} HP)`;
+}
+
+function addOrEditEffect(i){
+  const u = state.units[i];
+  const eName = document.getElementById(`ename-${i}`).value;
+  const eCause = document.getElementById(`ecause-${i}`).value || "Unknown";
+  const eVal = parseInt(document.getElementById(`eval-${i}`).value)||0;
+  const eDur = parseInt(document.getElementById(`edur-${i}`).value)||0;
+  const sign = u.sign;
+
+  if(!eName || eDur<=0) return;
+
+  // if editing, replace selectedEffect
+  if(u.selectedEffect!==null){
+    u.effects[u.selectedEffect]={name:eName,cause:eCause,dmg:sign*eVal,duration:eDur,start:u.turn};
+    u.selectedEffect=null;
+  } else {
+    u.effects.push({name:eName,cause:eCause,dmg:sign*eVal,duration:eDur,start:u.turn});
+  }
+
+  log(`(${eCause}) inflicted ${eName} on ${u.name} for ${eDur} turns (${sign*eVal>0 ? "+" : ""}${sign*eVal} HP)`);
+  render();
+}
+
+function renderEffects(i){
+  const u = state.units[i];
+  const container = document.getElementById(`effects-${i}`);
+  container.innerHTML = "";
+
+  u.effects.forEach((e,idx)=>{
+    const div = document.createElement("div");
+    div.className="effectRow";
+    div.innerHTML=`
+      <span>${e.name} (${e.dmg>0?"+":"")}${e.dmg} over ${e.duration} turns)</span>
+      <div>
+        <button onclick="editEffect(${i},${idx})">Edit</button>
+        <button class="delete" onclick="deleteEffect(${i},${idx})">Delete</button>
+        <button onclick="duplicateEffect(${i},${idx})">Duplicate</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function editEffect(uIdx,eIdx){
+  const u = state.units[uIdx];
+  const e = u.effects[eIdx];
+  document.getElementById(`ename-${uIdx}`).value=e.name;
+  document.getElementById(`ecause-${uIdx}`).value=e.cause;
+  document.getElementById(`eval-${uIdx}`).value=Math.abs(e.dmg);
+  document.getElementById(`edur-${uIdx}`).value=e.duration;
+  u.sign=e.dmg>=0?1:-1;
+  u.selectedEffect=eIdx;
+  updatePreview(uIdx);
+}
+
+function deleteEffect(uIdx,eIdx){
+  const u = state.units[uIdx];
+  log(`Deleted effect ${u.effects[eIdx].name} from ${u.name}`);
+  u.effects.splice(eIdx,1);
+  render();
+}
+
+function duplicateEffect(uIdx,eIdx){
+  const u = state.units[uIdx];
+  const e = u.effects[eIdx];
+  u.effects.push({...e});
+  log(`Duplicated effect ${e.name} on ${u.name}`);
+  render();
+}
+
+/* ---------------- UNIT DUPLICATE / DELETE ---------------- */
+function duplicateUnit(i){
+  const copy = {...state.units[i], effects:[...state.units[i].effects], history:[...state.units[i].history]};
+  state.units.splice(i+1,0,copy);
+  log(`Duplicated unit ${state.units[i].name}`);
+  render();
+}
+
+function deleteUnit(i){
+  log(`Deleted unit ${state.units[i].name}`);
+  state.units.splice(i,1);
+  render();
+}
+
+/* ---------------- HISTORY / LOG ---------------- */
+function clearHistory(){ state.log=[]; renderLog(); }
+
+document.getElementById("outlineColor").onchange=(e)=>{
+  state.outlineColor=e.target.value;
+  renderLog();
+};
+
+/* ---------------- EFFECT SNAPSHOTS / TURN TRACKING ---------------- */
+function applyTurnEffects(){
+  state.units.forEach(u=>{
+    u.effects.forEach((e,idx)=>{
+      if(u.turn>=e.start && u.turn<e.start+e.duration){
+        u.hp-=e.dmg;
+        if(u.turn===e.start+e.duration-1){
+          log(`Effect ${e.name} expired on ${u.name}`);
+        }
+      }
+    });
+  });
+}
+
+setInterval(()=>{
+  applyTurnEffects();
+  render();
+},5000); // example auto-tick every 5s
+
 </script>
 </body>
 </html>
