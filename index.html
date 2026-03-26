@@ -2,162 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sidegoons TTRPG Host</title>
+    <title>Sidegoons TTRPG Host v1.0.0</title>
     <style>
-        :root {
-            --bg: #0f0f0f;
-            --surface: #1a1a1a;
-            --accent: #7c4dff;
-            --text: #e0e0e0;
-            --border: #333;
-            --danger: #cf6679;
-            --success: #03dac6;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
+        :root { --bg: #121212; --surf: #1e1e1e; --border: #333; --text: #eee; --accent: #00adb5; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
         /* Layout */
-        #history-column {
-            width: 50%;
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
-
-        #unit-column {
-            width: 50%;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .header {
-            padding: 15px 20px;
-            border-bottom: 1px solid var(--border);
-            background: #111;
-        }
-
-        /* Log Styling */
-        #log-container {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column-gap;
-        }
-
-        .log-entry {
-            padding: 8px;
-            border-left: 3px solid var(--accent);
-            background: var(--surface);
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-            animation: fadeIn 0.3s ease;
-        }
+        #history-log { width: 50%; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        #unit-mgmt { width: 50%; padding: 20px; overflow-y: auto; }
+        
+        .header { padding: 15px; border-bottom: 1px solid var(--border); background: #1a1a1a; }
+        #log-output { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column-reverse; gap: 5px; }
+        .log-line { font-family: monospace; font-size: 13px; color: #aaa; border-bottom: 1px solid #222; padding-bottom: 2px; }
 
         /* Unit Cards */
-        .unit-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-        }
-
-        .unit-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .hp-controls button {
-            background: #333;
-            color: white;
-            border: none;
-            padding: 5px 12px;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-
-        /* Details Menu */
-        .details-menu {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid var(--border);
-        }
-
-        .status-item {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: #252525;
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 4px;
-        }
-
-        .preview-box {
-            background: #111;
-            padding: 10px;
-            border: 1px dashed var(--accent);
-            margin: 10px 0;
-            font-style: italic;
-            font-size: 0.85rem;
-        }
-
-        /* Forms */
-        input, select {
-            background: #222;
-            border: 1px solid var(--border);
-            color: white;
-            padding: 8px;
-            border-radius: 4px;
-        }
-
-        .btn-primary { background: var(--accent); color: white; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; }
+        .unit-card { background: var(--surf); border: 1px solid var(--border); border-radius: 4px; padding: 15px; margin-bottom: 15px; }
+        .unit-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .hp-input { width: 50px; background: #000; color: #fff; border: 1px solid var(--border); text-align: center; }
         
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Details Menu */
+        .details { border-top: 1px solid var(--border); margin-top: 10px; padding-top: 10px; }
+        .status-box { background: #252525; padding: 8px; margin: 5px 0; border-radius: 3px; display: flex; gap: 10px; align-items: center; }
+        .preview { color: var(--accent); font-size: 13px; margin: 10px 0; padding: 5px; border: 1px dashed var(--accent); }
+        
+        input, select, button { background: #333; color: #fff; border: 1px solid var(--border); padding: 5px; border-radius: 3px; }
+        button { cursor: pointer; background: #444; }
+        button:hover { background: #555; }
+        .btn-add { background: var(--accent); border: none; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div id="history-column">
-    <div class="header">
-        <h2>Activity Log</h2>
-    </div>
-    <div id="log-container">
-        <div class="log-entry">Session started. Version 1.0.0</div>
-    </div>
+<div id="history-log">
+    <div class="header">Activity Log</div>
+    <div id="log-output"></div>
 </div>
 
-<div id="unit-column">
-    <div class="header">
-        <h2>Unit Management <small style="opacity: 0.5">v1.0.0</small></h2>
-    </div>
-
+<div id="unit-mgmt">
+    <div class="header">Unit Management <small>v1.0.0</small></div>
+    
     <div style="margin: 20px 0;">
-        <input type="text" id="unit-name-in" placeholder="Unit Name">
-        <input type="number" id="unit-hp-in" placeholder="Max HP" style="width: 80px;">
-        <button class="btn-primary" onclick="addUnit()">Add Unit</button>
+        <input type="text" id="in-name" placeholder="Name">
+        <input type="number" id="in-hp" placeholder="HP" style="width:60px">
+        <button class="btn-add" onclick="addUnit()">Add Unit</button>
     </div>
 
-    <div id="unit-list">
-        </div>
+    <div id="unit-list"></div>
 </div>
 
 <script type="module">
-    // --- FIREBASE CONFIG ---
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyDPwnxFEJCJqbVX0U-vWKjIG8cTfh3jebI",
@@ -170,133 +65,102 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const unitsRef = collection(db, "units");
+    const colRef = collection(db, "units");
 
-    // --- LOGIC ---
-
-    window.addUnit = async () => {
-        const name = document.getElementById('unit-name-in').value;
-        const hp = parseInt(document.getElementById('unit-hp-in').value);
-        if(!name || !hp) return;
-
-        await addDoc(unitsRef, {
-            name: name,
-            maxHP: hp,
-            currentHP: hp,
-            turn: 1,
-            statuses: []
-        });
-        
-        logAction(`${name} entered the fray.`);
-        document.getElementById('unit-name-in').value = '';
-    };
-
-    function logAction(msg) {
-        const container = document.getElementById('log-container');
+    // Helper: Logging
+    window.logMsg = (msg) => {
+        const out = document.getElementById('log-output');
         const div = document.createElement('div');
-        div.className = 'log-entry';
-        div.innerText = msg;
-        container.prepend(div);
-    }
-
-    // Update Turn or HP logic
-    window.updateStat = async (id, field, delta, currentVal) => {
-        const unitDoc = doc(db, "units", id);
-        let newVal = currentVal + delta;
-        if(field === 'currentHP') newVal = Math.min(Math.max(0, newVal)); 
-        
-        await updateDoc(unitDoc, { [field]: newVal });
-        logAction(`Unit stat updated: ${field} is now ${newVal}`);
+        div.className = 'log-line';
+        div.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+        out.appendChild(div);
     };
 
-    // This listener builds the UI whenever Firebase data changes
-    onSnapshot(unitsRef, (snapshot) => {
+    // Action: Add Unit
+    window.addUnit = async () => {
+        const name = document.getElementById('in-name').value;
+        const hp = parseInt(document.getElementById('in-hp').value);
+        if(!name || !hp) return;
+        await addDoc(colRef, { name, curHP: hp, maxHP: hp, turn: 1, statuses: [] });
+        logMsg(`Created Unit: ${name}`);
+        document.getElementById('in-name').value = '';
+        document.getElementById('in-hp').value = '';
+    };
+
+    // Action: Update Field
+    window.modUnit = async (id, name, field, newVal) => {
+        const d = doc(db, "units", id);
+        await updateDoc(d, { [field]: newVal });
+        logMsg(`Modified ${name}: ${field} to ${newVal}`);
+    };
+
+    // Action: Add Status
+    window.applyStatus = async (id, unitName) => {
+        const sName = document.getElementById(`sn-${id}`).value;
+        const sCause = document.getElementById(`sc-${id}`).value;
+        const sVal = document.getElementById(`sv-${id}`).value;
+        const sDur = document.getElementById(`sd-${id}`).value;
+        const sType = document.getElementById(`st-${id}`).value; // heal or hurt
+        
+        const sign = sType === "heal" ? "+" : "-";
+        const previewText = `${sCause} inflicted ${sName} on ${unitName} (${sign}${sVal} hp, ${sDur} turns)`;
+        
+        const newStatus = { name: sName, cause: sCause, val: sVal, dur: sDur, type: sType };
+        const d = doc(db, "units", id);
+        await updateDoc(d, { statuses: arrayUnion(newStatus) });
+        
+        logMsg(previewText);
+    };
+
+    // Action: Preview Sync
+    window.syncPreview = (id, unitName) => {
+        const sName = document.getElementById(`sn-${id}`).value || "?";
+        const sCause = document.getElementById(`sc-${id}`).value || "?";
+        const sVal = document.getElementById(`sv-${id}`).value || "0";
+        const sDur = document.getElementById(`sd-${id}`).value || "0";
+        const sign = document.getElementById(`st-${id}`).value === "heal" ? "+" : "-";
+        document.getElementById(`pv-${id}`).innerText = `Preview: ${sCause} inflicted ${sName} on ${unitName} (${sign}${sVal} hp, ${sDur} turns)`;
+    };
+
+    // Render Logic
+    onSnapshot(colRef, (snap) => {
         const list = document.getElementById('unit-list');
         list.innerHTML = '';
-
-        snapshot.forEach(docSnap => {
-            const data = docSnap.data();
-            const id = docSnap.id;
-
-            const card = document.createElement('div');
-            card.className = 'unit-card';
-            card.innerHTML = `
-                <div class="unit-header">
+        snap.forEach(s => {
+            const u = s.data();
+            const id = s.id;
+            const div = document.createElement('div');
+            div.className = 'unit-card';
+            div.innerHTML = `
+                <div class="unit-row">
+                    <strong>${u.name}</strong>
                     <div>
-                        <strong>${data.name}</strong> 
-                        <span>${data.currentHP} / ${data.maxHP} HP</span>
-                        <div style="font-size: 0.8rem; color: #888;">Turn: ${data.turn}</div>
-                    </div>
-                    <div class="hp-controls">
-                        <button onclick="updateStat('${id}', 'currentHP', -1, ${data.currentHP})">- HP</button>
-                        <button onclick="updateStat('${id}', 'currentHP', 1, ${data.currentHP})">+ HP</button>
-                        <button onclick="updateStat('${id}', 'turn', 1, ${data.turn})">Next Turn</button>
+                        HP: <input type="number" class="hp-input" value="${u.curHP}" onchange="modUnit('${id}', '${u.name}', 'curHP', parseInt(this.value))"> / ${u.maxHP}
+                        | Turn: <button onclick="modUnit('${id}', '${u.name}', 'turn', ${u.turn - 1})">-</button> ${u.turn} <button onclick="modUnit('${id}', '${u.name}', 'turn', ${u.turn + 1})">+</button>
                     </div>
                 </div>
-                
-                <div class="details-menu">
-                    <h4>Status Effects</h4>
-                    <div id="status-list-${id}">
-                        ${renderStatuses(data.statuses, data.name)}
+                <div class="details">
+                    <small>Active Statuses:</small>
+                    <div id="stat-list-${id}">
+                        ${u.statuses.map(st => `<div class="status-box">${st.name} (${st.type === 'heal' ? '+' : '-'}${st.val} HP) [${st.dur} turns]</div>`).join('')}
                     </div>
-                    
-                    <div class="status-creator" style="margin-top:15px; display:flex; flex-wrap:wrap; gap:5px;">
-                        <input type="text" id="st-name-${id}" placeholder="Status Name" oninput="updatePreview('${id}', '${data.name}')">
-                        <input type="text" id="st-cause-${id}" placeholder="Cause" oninput="updatePreview('${id}', '${data.name}')">
-                        <input type="number" id="st-val-${id}" placeholder="Val" style="width:50px" oninput="updatePreview('${id}', '${data.name}')">
-                        <select id="st-type-${id}" onchange="updatePreview('${id}', '${data.name}')">
+                    <div style="margin-top:10px; display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
+                        <input id="sn-${id}" placeholder="Status Name" oninput="syncPreview('${id}', '${u.name}')">
+                        <input id="sc-${id}" placeholder="Cause" oninput="syncPreview('${id}', '${u.name}')">
+                        <input id="sv-${id}" type="number" placeholder="HP/DMG" oninput="syncPreview('${id}', '${u.name}')">
+                        <input id="sd-${id}" type="number" placeholder="Duration" oninput="syncPreview('${id}', '${u.name}')">
+                        <select id="st-${id}" onchange="syncPreview('${id}', '${u.name}')">
                             <option value="hurt">Hurts (-)</option>
                             <option value="heal">Heals (+)</option>
                         </select>
-                        <input type="number" id="st-dur-${id}" placeholder="Turns" style="width:50px" oninput="updatePreview('${id}', '${data.name}')">
-                        <button class="btn-primary" onclick="addStatus('${id}', '${data.name}')">Apply</button>
+                        <button onclick="applyStatus('${id}', '${u.name}')">Apply Status</button>
                     </div>
-                    <div class="preview-box" id="preview-${id}">Preview: Waiting for input...</div>
+                    <div class="preview" id="pv-${id}">Preview: Waiting...</div>
                 </div>
             `;
-            list.appendChild(card);
+            list.appendChild(div);
         });
     });
-
-    function renderStatuses(statuses, unitName) {
-        if(!statuses || statuses.length === 0) return '<p style="font-size:0.8rem; color:#666">No active effects.</p>';
-        return statuses.map(s => `
-            <div class="status-item">
-                <b>${s.name}</b> (${s.type === 'heal' ? '+' : '-'}${s.value} HP) - ${s.duration} turns left
-            </div>
-        `).join('');
-    }
-
-    window.updatePreview = (id, unitName) => {
-        const name = document.getElementById(`st-name-${id}`).value || "...";
-        const cause = document.getElementById(`st-cause-${id}`).value || "...";
-        const val = document.getElementById(`st-val-${id}`).value || "0";
-        const type = document.getElementById(`st-type-${id}`).value;
-        const dur = document.getElementById(`st-dur-${id}`).value || "0";
-        const sign = type === 'heal' ? '+' : '-';
-
-        const previewText = `${cause} inflicted ${name} on ${unitName} (${sign}${val} hp, ${dur} turns)`;
-        document.getElementById(`preview-${id}`).innerText = `Preview: ${previewText}`;
-    };
-
-    window.addStatus = async (id, unitName) => {
-        const name = document.getElementById(`st-name-${id}`).value;
-        const cause = document.getElementById(`st-cause-${id}`).value;
-        const val = document.getElementById(`st-val-${id}`).value;
-        const dur = document.getElementById(`st-dur-${id}`).value;
-        const type = document.getElementById(`st-type-${id}`).value;
-
-        if(!name || !dur) return;
-
-        // In a real production app, you'd fetch the current doc and push to the array
-        // For this demo, we'll log the preview string as requested
-        const previewText = `${cause} inflicted ${name} on ${unitName} (${type === 'heal' ? '+' : '-'}${val} hp, ${dur} turns)`;
-        logAction(previewText);
-        
-        // Clear inputs
-        document.getElementById(`st-name-${id}`).value = '';
-    };
-
 </script>
 </body>
 </html>
