@@ -1,230 +1,300 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>TTRPG Tracker</title>
-    <style>
-        body { font-family: sans-serif; background:#111; color:white; margin:0; }
-        .container { display:flex; height:100vh; overflow:hidden; }
-        #main { flex:1; padding:10px; overflow-y:auto; }
-        #log { width:300px; background:#000; padding:10px; border-left:2px solid #444; overflow-y:auto; }
-        #divider { width:5px; cursor:col-resize; background:#444; }
-        #divider:hover { background:#666; }
-
-        .unit { margin:5px; padding:10px; display:flex; justify-content:space-between; background:#222; border-radius: 4px; border: 1px solid transparent; }
-        .unit-left { flex:1; }
-        .rightCol { display:flex; flex-direction:column; align-items:center; gap: 4px; padding-left: 10px; }
-        .panel { margin-top:10px; padding:10px; background:#1a1a1a; border-radius: 4px; cursor: default; }
-        .effectRow { display:flex; justify-content:space-between; align-items: center; margin-bottom: 5px; background: #2a2a2a; padding: 5px; border-radius: 3px; }
-        .delete { color:#ff4444; cursor:pointer; border: 1px solid #ff4444; background: none; padding: 2px 5px; border-radius: 3px; }
-        .delete:hover { background: rgba(255,68,68,0.1); }
-        .section { margin-top:10px; border-top: 1px solid #333; padding-top: 8px; }
-        .grid { display:grid; grid-template-columns: 1.5fr 1fr auto 0.6fr 0.6fr; gap:5px; margin-bottom: 5px; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sidegoons TTRPG Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         
-        button { cursor: pointer; background: #444; color: white; border: 1px solid #555; padding: 4px 8px; border-radius: 3px; }
-        button:hover { background: #555; }
-        input { background: #333; color: white; border: 1px solid #555; padding: 3px; border-radius: 3px; }
+        const firebaseConfig = {
+            apiKey: "AIzaSyDPwnxFEJCJqbVX0U-vWKjIG8cTfh3jebI",
+            authDomain: "sidegoons.firebaseapp.com",
+            projectId: "sidegoons",
+            storageBucket: "sidegoons.firebasestorage.app",
+            messagingSenderId: "275598873443",
+            appId: "1:275598873443:web:8683ddc1a5c5c6c7a1f956"
+        };
+        const app = initializeApp(firebaseConfig);
+    </script>
+    <style>
+        .resizer { width: 10px; cursor: col-resize; background: #e5e7eb; }
+        .resizer:hover { background: #3b82f6; }
+        .history-sidebar { min-width: 200px; max-width: 600px; }
+        .ghost { opacity: 0.4; background: #dbeafe; }
+        /* Spacing for misclick prevention */
+        .btn-spacing { margin: 0.5rem; }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 h-screen flex overflow-hidden text-sm md:text-base">
 
-<div class="container">
-  <div id="main">
-    <h1>TTRPG Tracker</h1>
-    <div style="margin-bottom:15px; display: flex; gap: 8px; flex-wrap: wrap;">
-      <button onclick="addUnit()">+ Add Unit</button>
-      <button onclick="clearUnits()">Clear All Units</button>
-      <button onclick="clearAllEffects()">Clear All Status Effects</button>
-      <button onclick="resetAllHP()">Reset HP</button>
-    </div>
-    <div id="units"></div>
-  </div>
+    <main class="flex-1 flex flex-col p-4 overflow-y-auto">
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Sidegoons TTRPG</h1>
+            <p class="text-gray-500 font-mono text-xs">Version 1.0.0</p>
+        </header>
 
-  <div id="divider"></div>
+        <div class="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-lg shadow-sm border border-gray-200">
+            <button onclick="addUnit()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">Add Unit</button>
+            <button onclick="resetAllHP()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition">Reset to Max HP</button>
+            <div class="flex-1"></div> <button onclick="clearStatusEffects()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">Clear Status Effects</button>
+            <button onclick="clearUnits()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition">Clear All Units</button>
+        </div>
 
-  <div id="log">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <h3 style="margin:0">History</h3>
-        <input type="color" id="outlineColor" value="#ffffff" onchange="updateOutlineColor(this.value)">
-    </div>
-    <button onclick="clearHistory()" style="width: 100%; margin-bottom: 10px;">Clear History</button>
-    <div id="logContent"></div>
-  </div>
-</div>
+        <div class="flex items-center gap-4 mb-6 bg-gray-800 text-white p-4 rounded-lg">
+            <span class="font-bold uppercase tracking-wider">Round Tracking:</span>
+            <button onclick="changeGlobalTurn(-1)" class="bg-gray-700 px-3 py-1 rounded">-</button>
+            <input type="number" id="globalTurn" value="1" class="w-16 bg-gray-900 text-center border-none rounded">
+            <button onclick="changeGlobalTurn(1)" class="bg-gray-700 px-3 py-1 rounded">+</button>
+        </div>
 
-<script>
-let state = {
-  units: [],
-  log: [],
-  outlineColor: '#ffffff'
-};
+        <div id="unitContainer" class="space-y-4">
+            </div>
+    </main>
 
-/* ---------------- CORE ACTIONS ---------------- */
-function addUnit() {
-  state.units.push({
-    id: Date.now() + Math.random(),
-    name: "New Unit",
-    hp: 10,
-    maxHp: 10,
-    turn: 0,
-    effects: [],
-    open: false,
-    sign: -1 // Set to -1 by default for damage
-  });
-  log("Added new unit");
-  render();
-}
+    <div class="resizer" id="dragMe"></div>
 
-function log(text) {
-  state.log.push(text);
-  renderLog();
-}
+    <aside id="sidebar" class="history-sidebar bg-white border-l border-gray-300 flex flex-col w-80">
+        <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+            <h2 class="font-bold text-gray-700 uppercase">History Log</h2>
+            <div class="flex gap-2">
+                <button onclick="deleteSelectedHistory()" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-red-100 hover:text-red-600">Delete Selected</button>
+                <button onclick="clearHistory()" class="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-red-100 hover:text-red-600">Clear All</button>
+            </div>
+        </div>
+        <div id="historyList" class="flex-1 overflow-y-auto p-4 space-y-2">
+            </div>
+    </aside>
 
-function updateOutlineColor(val) {
-    state.outlineColor = val;
-    render();
-}
+    <script>
+        let units = [];
+        let history = [];
 
-/* ---------------- RENDERING ---------------- */
-function render() {
-  const container = document.getElementById("units");
-  container.innerHTML = "";
-
-  state.units.forEach((u, i) => {
-    const div = document.createElement("div");
-    div.className = "unit";
-    div.style.borderColor = u.open ? state.outlineColor : 'transparent';
-    
-    // Header Click Logic
-    div.onclick = (e) => {
-        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
-            u.open = !u.open; 
+        // --- CORE FUNCTIONS ---
+        function addUnit() {
+            const id = Date.now();
+            const newUnit = {
+                id,
+                name: "New Unit",
+                curHP: 10,
+                maxHP: 10,
+                statusEffects: [],
+                isOpen: false
+            };
+            units.push(newUnit);
+            logAction(`Created Unit: ${newUnit.name}`);
             render();
         }
-    };
 
-    div.innerHTML = `
-      <div class="unit-left">
-        <div><span>${u.open ? "▼" : "▶"}</span> <b>${u.name}</b> — HP: ${u.hp}/${u.maxHp}</div>
-        
-        <div class="panel" style="display: ${u.open ? 'block' : 'none'}">
-          <div class="section">
-              Name: <input style="width:120px" value="${u.name}" oninput="state.units[${i}].name = this.value">
-              HP: <input style="width:40px" type="number" value="${u.hp}" oninput="state.units[${i}].hp = parseInt(this.value) || 0">
-              / <input style="width:40px" type="number" value="${u.maxHp}" oninput="state.units[${i}].maxHp = parseInt(this.value) || 0">
-          </div>
-          <div class="section">
-              <b>Effects</b>
-              <div id="effects-list-${i}" style="margin: 5px 0;">
-                ${u.effects.map((e, eIdx) => `
-                    <div class="effectRow">
-                        <span style="font-size: 0.9em;">${e.name} <i style="color:#aaa">(${e.cause})</i>: <b>${e.dmg > 0 ? '+':''}${e.dmg} HP</b> (${e.duration} turns)</span>
-                        <button class="delete" onclick="deleteEffect(${i}, ${eIdx})">X</button>
+        function clearUnits() {
+            if(confirm("Delete all units?")) {
+                units = [];
+                logAction("Cleared all units");
+                render();
+            }
+        }
+
+        function resetAllHP() {
+            units.forEach(u => u.curHP = u.maxHP);
+            logAction("Reset all units to Max HP");
+            render();
+        }
+
+        function clearStatusEffects() {
+            units.forEach(u => u.statusEffects = []);
+            logAction("Cleared all status effects from all units");
+            render();
+        }
+
+        function logAction(msg) {
+            const entry = { id: Date.now(), text: `[${new Date().toLocaleTimeString()}] ${msg}`, selected: false };
+            history.unshift(entry);
+            updateHistory();
+        }
+
+        // --- RENDERING ---
+        function render() {
+            const container = document.getElementById('unitContainer');
+            container.innerHTML = '';
+
+            units.forEach((unit, idx) => {
+                const unitEl = document.createElement('div');
+                unitEl.className = `bg-white border rounded-lg shadow-sm overflow-hidden border-l-4 ${unit.curHP <= 0 ? 'border-l-red-500' : 'border-l-blue-500'}`;
+                unitEl.dataset.id = unit.id;
+
+                unitEl.innerHTML = `
+                    <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-gray-50" onclick="toggleUnit(${unit.id})">
+                        <div class="flex items-center gap-4">
+                            <span class="text-gray-400 cursor-move drag-handle">☰</span>
+                            <span class="font-bold text-lg">${unit.name}</span>
+                        </div>
+                        <div class="font-mono bg-gray-100 px-3 py-1 rounded">
+                            HP: <span class="${unit.curHP < (unit.maxHP/2) ? 'text-red-600' : 'text-green-600'}">${unit.curHP}</span> / ${unit.maxHP}
+                        </div>
                     </div>
-                `).join('')}
-              </div>
-              <div class="grid">
-                  <input id="ename-${i}" placeholder="Effect">
-                  <input id="ecause-${i}" placeholder="Cause">
-                  <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
-                  <input id="eval-${i}" type="number" placeholder="HP">
-                  <input id="edur-${i}" type="number" placeholder="Turns">
-              </div>
-              <button style="width:100%; margin-top:5px;" onclick="addEffect(${i})">Apply Effect</button>
-          </div>
-          <div class="section" style="display:flex; justify-content: space-between; margin-top: 10px;">
-              <button onclick="duplicateUnit(${i})">Duplicate</button>
-              <button class="delete" onclick="deleteUnit(${i})">Delete Unit</button>
-          </div>
-        </div>
-      </div>
+                    
+                    <div class="${unit.isOpen ? 'block' : 'hidden'} p-4 border-t bg-gray-50 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Unit Name</label>
+                                <input type="text" value="${unit.name}" onchange="updateUnit(${unit.id}, 'name', this.value)" class="w-full border rounded p-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Current HP</label>
+                                <input type="number" value="${unit.curHP}" onchange="updateUnit(${unit.id}, 'curHP', this.value)" class="w-full border rounded p-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-500 uppercase">Max HP</label>
+                                <input type="number" value="${unit.maxHP}" onchange="updateUnit(${unit.id}, 'maxHP', this.value)" class="w-full border rounded p-2">
+                            </div>
+                        </div>
 
-      <div class="rightCol">
-          <button onclick="changeTurn(${i}, 1)">+</button>
-          <div style="font-size: 0.8em; font-weight: bold;">Turn ${u.turn}</div>
-          <button onclick="changeTurn(${i}, -1)">-</button>
-      </div>
-    `;
-    container.appendChild(div);
-  });
-}
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-bold text-gray-700">Status Effects</h4>
+                                <button onclick="showStatusForm(${unit.id})" class="text-xs bg-blue-500 text-white px-2 py-1 rounded">+ Add Effect</button>
+                            </div>
+                            <div id="status-list-${unit.id}" class="space-y-2">
+                                ${unit.statusEffects.map((s, sIdx) => `
+                                    <div class="bg-white border p-2 rounded flex justify-between items-center shadow-sm">
+                                        <div>
+                                            <span class="font-bold">${s.name}</span> 
+                                            <span class="text-xs text-gray-500">(${s.val >= 0 ? '+' : ''}${s.val} HP, ${s.dur} turns)</span>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button onclick="duplicateStatus(${unit.id}, ${sIdx})" class="text-xs text-blue-500">Duplicate</button>
+                                            <button onclick="editStatus(${unit.id}, ${sIdx})" class="text-xs text-gray-500">Edit</button>
+                                            <button onclick="deleteStatus(${unit.id}, ${sIdx})" class="text-xs text-red-500">Delete</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
 
-function renderLog() {
-  const c = document.getElementById("logContent");
-  c.innerHTML = state.log.slice().reverse().map(entry => 
-    `<div style="border-bottom: 1px solid #222; padding: 4px 0; font-size: 0.9em;">${entry}</div>`
-  ).join('');
-}
+                        <button onclick="deleteUnit(${unit.id})" class="text-xs text-red-500 underline">Delete Unit</button>
+                    </div>
+                `;
+                container.appendChild(unitEl);
+            });
 
-/* ---------------- LOGIC FUNCTIONS ---------------- */
-function changeTurn(i, amt) {
-    state.units[i].turn = Math.max(0, state.units[i].turn + amt);
-    log(`${state.units[i].name} turn updated to ${state.units[i].turn}`);
-    render();
-}
+            // Initialize Drag and Drop
+            new Sortable(container, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'ghost',
+                onEnd: (evt) => {
+                    const movedItem = units.splice(evt.oldIndex, 1)[0];
+                    units.splice(evt.newIndex, 0, movedItem);
+                }
+            });
+        }
 
-function addEffect(i) {
-    const name = document.getElementById(`ename-${i}`).value;
-    const cause = document.getElementById(`ecause-${i}`).value || "Unknown";
-    const dmg = parseInt(document.getElementById(`eval-${i}`).value) || 0;
-    const dur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
-    
-    if(!name) return;
+        // --- STATUS EFFECT LOGIC ---
+        function showStatusForm(unitId, editIdx = null) {
+            const unit = units.find(u => u.id === unitId);
+            const isEditing = editIdx !== null;
+            const s = isEditing ? unit.statusEffects[editIdx] : { name: '', cause: '', val: 0, dur: 1, type: 'pos' };
 
-    state.units[i].effects.push({ 
-        name, 
-        cause, 
-        dmg: dmg * state.units[i].sign, 
-        duration: dur 
-    });
-    
-    log(`Effect "${name}" applied to ${state.units[i].name}`);
-    render();
-}
+            const name = prompt("Status Name:", s.name);
+            if (!name) return;
+            const val = prompt("HP/Damage Value (Positive Number):", Math.abs(s.val));
+            const isPos = confirm("Is this Positive? (OK for +, Cancel for -)");
+            const dur = prompt("Duration (Turns):", s.dur);
 
-function deleteEffect(uIdx, eIdx) {
-    state.units[uIdx].effects.splice(eIdx, 1);
-    render();
-}
+            const newStatus = {
+                name,
+                val: isPos ? parseInt(val) : -parseInt(val),
+                dur: parseInt(dur),
+                cause: ""
+            };
 
-function toggleSign(i) {
-    state.units[i].sign *= -1;
-    render();
-}
+            if (isEditing) {
+                unit.statusEffects[editIdx] = newStatus;
+                logAction(`Edited status on ${unit.name}`);
+            } else {
+                unit.statusEffects.push(newStatus);
+                logAction(`Applied ${name} to ${unit.name}`);
+            }
+            render();
+        }
 
-function duplicateUnit(i) {
-    const copy = JSON.parse(JSON.stringify(state.units[i]));
-    copy.id = Date.now() + Math.random();
-    state.units.splice(i + 1, 0, copy);
-    log(`Duplicated ${state.units[i].name}`);
-    render();
-}
+        // --- UNIT HELPERS ---
+        window.toggleUnit = (id) => {
+            const unit = units.find(u => u.id === id);
+            unit.isOpen = !unit.isOpen;
+            render();
+        };
 
-function deleteUnit(i) {
-    log(`Removed ${state.units[i].name}`);
-    state.units.splice(i, 1);
-    render();
-}
+        window.updateUnit = (id, field, val) => {
+            const unit = units.find(u => u.id === id);
+            unit[field] = field === 'name' ? val : parseInt(val);
+            logAction(`Updated ${field} for ${unit.name}`);
+            render();
+        };
 
-function clearUnits() { if(confirm("Delete all units?")) { state.units = []; log("Cleared all units"); render(); } }
-function clearAllEffects() { state.units.forEach(u => u.effects = []); log("Cleared all effects"); render(); }
-function resetAllHP() { state.units.forEach(u => u.hp = u.maxHp); log("Reset all HP"); render(); }
-function clearHistory() { state.log = []; renderLog(); }
+        window.deleteUnit = (id) => {
+            const unit = units.find(u => u.id === id);
+            units = units.filter(u => u.id !== id);
+            logAction(`Deleted Unit: ${unit.name}`);
+            render();
+        };
 
-/* ---------------- RESIZE LOGIC ---------------- */
-const divider = document.getElementById("divider");
-const logBox = document.getElementById("log");
-let isResizing = false;
+        window.duplicateStatus = (unitId, sIdx) => {
+            const unit = units.find(u => u.id === unitId);
+            unit.statusEffects.push({...unit.statusEffects[sIdx]});
+            logAction(`Duplicated status on ${unit.name}`);
+            render();
+        };
 
-divider.onmousedown = () => isResizing = true;
-document.onmouseup = () => isResizing = false;
-document.onmousemove = (e) => {
-    if (!isResizing) return;
-    const newWidth = window.innerWidth - e.clientX;
-    if(newWidth > 100 && newWidth < 600) logBox.style.width = newWidth + "px";
-};
+        window.deleteStatus = (unitId, sIdx) => {
+            const unit = units.find(u => u.id === unitId);
+            unit.statusEffects.splice(sIdx, 1);
+            logAction(`Removed status from ${unit.name}`);
+            render();
+        };
 
-// Initial Render
-render();
-</script>
+        // --- HISTORY HELPERS ---
+        function updateHistory() {
+            const list = document.getElementById('historyList');
+            list.innerHTML = history.map((h, i) => `
+                <div class="flex items-start gap-2 text-xs border-b pb-1 border-gray-100">
+                    <input type="checkbox" onchange="history[${i}].selected = this.checked">
+                    <span class="text-gray-600">${h.text}</span>
+                </div>
+            `).join('');
+        }
+
+        window.clearHistory = () => { history = []; updateHistory(); };
+        window.deleteSelectedHistory = () => {
+            history = history.filter(h => !h.selected);
+            updateHistory();
+        };
+
+        window.changeGlobalTurn = (val) => {
+            const input = document.getElementById('globalTurn');
+            input.value = parseInt(input.value) + val;
+            logAction(`Global Turn set to ${input.value}`);
+        };
+
+        // --- RESIZABLE SIDEBAR LOGIC ---
+        const sidebar = document.getElementById("sidebar");
+        const dragMe = document.getElementById("dragMe");
+        let isResizing = false;
+
+        dragMe.addEventListener("mousedown", (e) => { isResizing = true; });
+        document.addEventListener("mousemove", (e) => {
+            if (!isResizing) return;
+            const newWidth = window.innerWidth - e.clientX;
+            if (newWidth > 200 && newWidth < 600) {
+                sidebar.style.width = `${newWidth}px`;
+            }
+        });
+        document.addEventListener("mouseup", () => { isResizing = false; });
+
+        // Initial Render
+        render();
+    </script>
 </body>
 </html>
