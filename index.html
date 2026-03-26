@@ -9,6 +9,470 @@ body {
   margin: 0;
 }
 
+.container {
+  display: flex;
+  height: 100vh;
+}
+
+#main {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* RESIZABLE LOG (drag handle) */
+#log {
+  width: 300px;
+  background: #000;
+  padding: 10px;
+  border-left: 2px solid #444;
+  overflow-y: auto;
+  resize: horizontal;
+}
+
+/* UNIT */
+.unit {
+  margin: 5px;
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* LEFT SIDE */
+.unit-left {
+  flex: 1;
+}
+
+/* TURN + DRAG COLUMN */
+.rightCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* TURN */
+.turnBox {
+  width: 40px;
+  text-align: center;
+}
+
+/* DRAG HANDLE */
+.drag {
+  cursor: grab;
+}
+
+/* PANEL */
+.panel {
+  margin-top: 5px;
+  padding: 10px;
+}
+
+/* EFFECT ROW */
+.effectRow {
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+/* DELETE */
+.delete {
+  color: red;
+  cursor: pointer;
+}
+
+/* SECTION */
+.section {
+  margin-top: 12px;
+}
+
+/* PREVIEW */
+.preview {
+  opacity: 0.8;
+  font-size: 0.9em;
+}
+
+/* INPUT GRID */
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <!-- MAIN -->
+  <div id="main">
+    <h1>TTRPG Tracker</h1>
+    <div style="margin-bottom:8px;">
+      Version: 5 &nbsp;&nbsp;
+      <button onclick="addUnit()">+ Add Unit</button>
+    </div>
+
+    <div id="units"></div>
+  </div>
+
+  <!-- LOG -->
+  <div id="log">
+    <h3>History</h3>
+  </div>
+
+</div>
+
+<script>
+let state = {
+  units: [],
+  log: []
+};
+
+/* ---------------- ADD UNIT ---------------- */
+function addUnit() {
+  state.units.push({
+    name: "Unit",
+    hp: 10,
+    maxHp: 10,
+    tempHp: 0, // 🔮 PREP FOR SHIELDS
+    turn: 0,
+    history: [],
+    effects: [],
+    open: false,
+    color: "#222",
+    panelColor: "#1a1a1a",
+    sign: 1,
+    selectedEffect: null
+  });
+  log("Added new unit");
+  render();
+}
+
+/* ---------------- LOG ---------------- */
+function log(text) {
+  state.log.push(text);
+}
+
+/* ---------------- RENDER ---------------- */
+function render() {
+  const container = document.getElementById("units");
+  container.innerHTML = "";
+
+  state.units.forEach((u, i) => {
+
+    const div = document.createElement("div");
+    div.className = "unit";
+    div.style.background = u.color;
+
+    /* LEFT */
+    const left = document.createElement("div");
+    left.className = "unit-left";
+
+    left.innerHTML = `
+      <div>
+        <span>${u.open ? "▼" : "▶"}</span>
+        <b>${u.name}</b>
+        HP: ${u.hp}/${u.maxHp}
+        ${u.tempHp > 0 ? `(Shield: ${u.tempHp})` : ""}
+      </div>
+    `;
+
+    /* PANEL */
+    const panel = document.createElement("div");
+    panel.className = "panel";
+    panel.style.background = u.panelColor;
+    if (!u.open) panel.style.display = "none";
+
+    panel.innerHTML = `
+      Name: <input value="${u.name}" oninput="setName(${i}, this.value)"><br>
+
+      HP:
+      <input type="number" value="${u.hp}" oninput="setHP(${i}, this.value)">
+      /
+      <input type="number" value="${u.maxHp}" oninput="setMaxHP(${i}, this.value)">
+
+      Temp:
+      <input type="number" value="${u.tempHp}" oninput="setTempHP(${i}, this.value)">
+
+      <div style="text-align:right">
+        Outside: <input type="color" value="${u.color}" onchange="setColor(${i}, this.value)">
+        Inside: <input type="color" value="${u.panelColor}" onchange="setPanelColor(${i}, this.value)">
+      </div>
+
+      <div class="section">
+        <b>Active Status Effects</b>
+        <div id="effects-${i}"></div>
+      </div>
+
+      <div class="section">
+        <b>Create / Edit Status Effect</b>
+
+        <div class="grid">
+          <input id="ename-${i}" placeholder="Name" oninput="updatePreview(${i})">
+          <input id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})">
+
+          <button onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
+          <input id="eval-${i}" type="number" placeholder="HP" oninput="updatePreview(${i})">
+
+          <input id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})">
+        </div>
+
+        <button onclick="addOrEditEffect(${i})">Apply</button>
+
+        <div class="section">
+          <b>Preview</b>
+          <div class="preview" id="preview-${i}"></div>
+        </div>
+      </div>
+
+      <div class="section" style="display:flex; justify-content:space-between;">
+        <button onclick="duplicateUnit(${i})">Duplicate</button>
+        <button class="delete" onclick="deleteUnit(${i})">Delete</button>
+      </div>
+    `;
+
+    panel.onclick = (e) => e.stopPropagation();
+
+    left.appendChild(panel);
+
+    /* RIGHT COLUMN (TURN + DRAG aligned) */
+    const right = document.createElement("div");
+    right.className = "rightCol";
+
+    right.innerHTML = `
+      <button onclick="event.stopPropagation(); prevTurn(${i})">-</button>
+      <input class="turnBox" value="${u.turn}" onchange="setTurn(${i}, this.value)">
+      <button onclick="event.stopPropagation(); nextTurn(${i})">+</button>
+      <div class="drag">|||</div>
+    `;
+
+    /* DRAG */
+    right.querySelector(".drag").draggable = true;
+    right.querySelector(".drag").ondragstart = (e) => {
+      e.dataTransfer.setData("index", i);
+    };
+
+    div.ondragover = (e) => e.preventDefault();
+    div.ondrop = (e) => {
+      const from = e.dataTransfer.getData("index");
+      const moved = state.units.splice(from, 1)[0];
+      state.units.splice(i, 0, moved);
+      render();
+    };
+
+    /* TOGGLE */
+    div.onclick = (e) => {
+      if (e.target.closest(".panel")) return;
+      u.open = !u.open;
+      render();
+    };
+
+    div.appendChild(left);
+    div.appendChild(right);
+
+    container.appendChild(div);
+
+    renderEffects(i);
+    updatePreview(i);
+  });
+
+  renderLog();
+}
+
+/* ---------------- TURN ---------------- */
+function snapshot(u) {
+  u.history.push(JSON.parse(JSON.stringify(u)));
+}
+
+function nextTurn(i) {
+  const u = state.units[i];
+  snapshot(u);
+
+  u.turn++;
+  applyEffects(u);
+  checkExpired(u);
+
+  log(`${u.name} → Turn ${u.turn}`);
+  render();
+}
+
+function prevTurn(i) {
+  const u = state.units[i];
+
+  if (u.history.length > 0) {
+    Object.assign(u, u.history.pop());
+    log(`${u.name} rewound`);
+  }
+
+  render();
+}
+
+function setTurn(i, val) {
+  const u = state.units[i];
+  snapshot(u);
+  u.turn = parseInt(val) || 0;
+  render();
+}
+
+/* ---------------- EFFECTS ---------------- */
+function addOrEditEffect(i) {
+  const u = state.units[i];
+
+  const name = document.getElementById(`ename-${i}`).value;
+  const cause = document.getElementById(`ecause-${i}`).value || "Unknown";
+  const val = (parseInt(document.getElementById(`eval-${i}`).value) || 0) * u.sign;
+  const dur = parseInt(document.getElementById(`edur-${i}`).value) || 0;
+
+  const effect = { name, cause, amount: val, duration: dur, start: u.turn };
+
+  if (u.selectedEffect !== null) {
+    u.effects[u.selectedEffect] = effect;
+    log(`Edited ${name}`);
+  } else {
+    u.effects.push(effect);
+    log(`${cause} inflicted ${name} on ${u.name} (${val >=0?"+":""}${val} HP over ${dur} turns)`);
+  }
+
+  u.selectedEffect = null;
+  render();
+}
+
+function renderEffects(i) {
+  const u = state.units[i];
+  const div = document.getElementById(`effects-${i}`);
+  if (!div) return;
+
+  div.innerHTML = "";
+
+  u.effects.forEach((e, idx) => {
+    div.innerHTML += `
+      <div class="effectRow" onclick="selectEffect(${i}, ${idx})">
+        <span>${e.name} (${e.amount>=0?"+":""}${e.amount} over ${e.duration})</span>
+        <span>
+          <span onclick="event.stopPropagation(); duplicateEffect(${i}, ${idx})">⧉</span>
+          <span class="delete" onclick="event.stopPropagation(); deleteEffect(${i}, ${idx})">X</span>
+        </span>
+      </div>
+    `;
+  });
+}
+
+function selectEffect(i, idx) {
+  const u = state.units[i];
+  const e = u.effects[idx];
+
+  u.selectedEffect = idx;
+
+  document.getElementById(`ename-${i}`).value = e.name;
+  document.getElementById(`ecause-${i}`).value = e.cause;
+  document.getElementById(`eval-${i}`).value = Math.abs(e.amount);
+  document.getElementById(`edur-${i}`).value = e.duration;
+
+  u.sign = e.amount >= 0 ? 1 : -1;
+
+  updatePreview(i);
+}
+
+function duplicateEffect(i, idx) {
+  const u = state.units[i];
+  u.effects.push({...u.effects[idx]});
+  log(`Duplicated effect`);
+  render();
+}
+
+function deleteEffect(i, idx) {
+  const u = state.units[i];
+  log(`Removed ${u.effects[idx].name}`);
+  u.effects.splice(idx, 1);
+  render();
+}
+
+function toggleSign(i) {
+  const u = state.units[i];
+  u.sign *= -1;
+  updatePreview(i);
+}
+
+function applyEffects(u) {
+  u.effects.forEach(e => {
+    if (u.turn >= e.start && u.turn < e.start + e.duration) {
+      if (e.amount < 0 && u.tempHp > 0) {
+        const absorb = Math.min(u.tempHp, -e.amount);
+        u.tempHp -= absorb;
+        u.hp += (e.amount + absorb);
+      } else {
+        u.hp += e.amount;
+      }
+    }
+  });
+}
+
+function checkExpired(u) {
+  u.effects.forEach(e => {
+    if (u.turn === e.start + e.duration) {
+      log(`${e.name} expired on ${u.name}`);
+    }
+  });
+}
+
+/* ---------------- PREVIEW ---------------- */
+function updatePreview(i) {
+  const u = state.units[i];
+
+  const name = document.getElementById(`ename-${i}`)?.value || "Effect";
+  const cause = document.getElementById(`ecause-${i}`)?.value || "Someone";
+  const valRaw = parseInt(document.getElementById(`eval-${i}`)?.value) || 0;
+  const dur = parseInt(document.getElementById(`edur-${i}`)?.value) || 0;
+
+  const val = valRaw * u.sign;
+
+  document.getElementById(`preview-${i}`).innerText =
+    `${cause} inflicted ${name} on ${u.name} (${val>=0?"+":""}${val} HP over ${dur} turns)`;
+}
+
+/* ---------------- LOG ---------------- */
+function renderLog() {
+  const logDiv = document.getElementById("log");
+  logDiv.innerHTML = "<h3>History</h3>";
+
+  state.log.slice().reverse().forEach(e => {
+    logDiv.innerHTML += `<div>${e}</div>`;
+  });
+}
+
+/* ---------------- BASIC ---------------- */
+function setName(i,v){state.units[i].name=v}
+function setHP(i,v){state.units[i].hp=parseInt(v)||0}
+function setMaxHP(i,v){state.units[i].maxHp=parseInt(v)||0}
+function setTempHP(i,v){state.units[i].tempHp=parseInt(v)||0}
+function setColor(i,v){state.units[i].color=v}
+function setPanelColor(i,v){state.units[i].panelColor=v}
+
+function deleteUnit(i){
+  log(`Deleted ${state.units[i].name}`);
+  state.units.splice(i,1);
+  render();
+}
+
+function duplicateUnit(i){
+  state.units.splice(i+1,0,JSON.parse(JSON.stringify(state.units[i])));
+  log(`Duplicated unit`);
+  render();
+}
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  font-family: sans-serif;
+  background: #111;
+  color: white;
+  margin: 0;
+}
+
 /* LAYOUT */
 .container {
   display: flex;
