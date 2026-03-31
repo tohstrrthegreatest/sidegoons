@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>TTRPG Tracker v6.2.3.f</title>
+<title>TTRPG Tracker v6.2.4</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -96,22 +96,22 @@ button:hover { border-color: var(--accent); }
 .btn-red { border-color: #ff5e5e; color: #ff5e5e; background: rgba(255, 94, 94, 0.1); }
 .btn-accent { background: var(--accent); color: #000; font-weight: 600; border: none; padding: 4px 10px; }
 
-/* Notification GUI */
+/* Toast Notification */
 #toast {
     position: fixed;
     bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.9);
     color: white;
-    padding: 15px 30px;
+    padding: 15px 35px;
     border-radius: 50px;
-    font-size: 1.2em;
+    font-size: 1.1em;
     z-index: 1000;
     pointer-events: none;
     opacity: 0;
     transition: opacity 1s ease-in-out;
-    border: 1px solid var(--accent);
+    border: 2px solid var(--accent);
 }
 
 .delete { color: #ff5e5e; cursor: pointer; margin-left: 8px; }
@@ -130,7 +130,7 @@ button:hover { border-color: var(--accent); }
     </div>
 
     <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
-      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.3.f</span>
+      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.4</span>
       <button class="btn-accent" onclick="addUnit()">+ Add Unit</button>
       <button class="btn-ghost" onclick="undoGlobal()">⟲ Undo</button>
       <button class="btn-ghost btn-red" onclick="allToMaxHP()">Max HP All</button>
@@ -177,7 +177,7 @@ function showToast(msg) {
     const t = document.getElementById("toast");
     t.innerText = msg;
     t.style.opacity = "1";
-    setTimeout(() => { t.style.opacity = "0"; }, 4000); // Start fading after 4s
+    setTimeout(() => { t.style.opacity = "0"; }, 4000);
 }
 
 function undoGlobal() {
@@ -248,7 +248,8 @@ function allToMaxHP() {
 
 function generateUrl() {
     const unitData = state.units.map(u => {
-        const effects = u.effects.map(e => `${encodeURIComponent(e.name)}|${e.amount}|${e.duration}|${e.start}`).join(':');
+        // Updated Status Serialization: Added Cause at the end
+        const effects = u.effects.map(e => `${encodeURIComponent(e.name)}|${e.amount}|${e.duration}|${e.start}|${encodeURIComponent(e.cause)}`).join(':');
         return `${encodeURIComponent(u.name)},${u.hp},${u.maxHp},${u.turn},[${effects}]`;
     }).join(';');
     
@@ -481,7 +482,7 @@ function deleteUnit(i) { log(`Deleted ${state.units[i].name}`); state.units.spli
 function duplicateUnit(i) { 
     log(`Cloned ${state.units[i].name}`); 
     const clone = JSON.parse(JSON.stringify(state.units[i]));
-    clone.open = false; // Closed by default as per request
+    clone.open = false;
     state.units.push(clone); 
     render(); 
 }
@@ -516,8 +517,14 @@ if (dataString) {
         const effects = [];
         if (effectsStr) {
             effectsStr.replace(']', '').split(':').forEach(eStr => {
-                const [en, ea, ed, es] = eStr.split('|');
-                if(en) effects.push({ name: decodeURIComponent(en), amount: parseInt(ea), duration: parseInt(ed), start: parseInt(es) });
+                const [en, ea, ed, es, ec] = eStr.split('|');
+                if(en) effects.push({ 
+                    name: decodeURIComponent(en), 
+                    amount: parseInt(ea), 
+                    duration: parseInt(ed), 
+                    start: parseInt(es),
+                    cause: ec ? decodeURIComponent(ec) : "Someone" 
+                });
             });
         }
         state.units.push({ name: decodeURIComponent(n), hp: parseInt(h), maxHp: parseInt(m), turn: parseInt(t), history: [], effects: effects, open: false, color: "#252525", panelColor: "#1a1a1a", sign: -1 });
