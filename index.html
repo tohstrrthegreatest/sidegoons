@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>TTRPG Tracker v6.2.4</title>
+<title>TTRPG Tracker v6.2.4.b</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -34,20 +34,32 @@ body {
   flex-direction: column;
 }
 
-/* Stealth Title Editor */
+.title-container {
+    display: flex;
+    flex: 1;
+    margin-right: 20px;
+}
+
 #title-input {
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--accent);
     font-family: 'Fredoka', sans-serif;
-    font-size: 1.5em;
+    font-size: 1.8em;
     font-weight: bold;
     outline: none;
-    width: auto;
-    min-width: 200px;
+    width: 100%;
     cursor: pointer;
+    resize: none;
+    overflow: hidden;
+    padding: 0;
+    line-height: 1.2;
+    display: block;
 }
-#title-input:focus { cursor: text; border-bottom: 1px dashed rgba(255,255,255,0.2); }
+#title-input:focus { 
+    cursor: text; 
+    border-bottom: 1px dashed rgba(255,255,255,0.2); 
+}
 
 .unit { margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; display: flex; flex-direction: column; border-left: 4px solid var(--accent); cursor: grab; }
 .unit.dragging { opacity: 0.1; }
@@ -96,7 +108,6 @@ button:hover { border-color: var(--accent); }
 .btn-red { border-color: #ff5e5e; color: #ff5e5e; background: rgba(255, 94, 94, 0.1); }
 .btn-accent { background: var(--accent); color: #000; font-weight: 600; border: none; padding: 4px 10px; }
 
-/* Toast Notification */
 #toast {
     position: fixed;
     bottom: 30px;
@@ -122,15 +133,15 @@ button:hover { border-color: var(--accent); }
 <body>
 
   <div id="main">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <input id="title-input" value="TTRPG Tracker" onchange="updateTitle(this.value)">
+    <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 15px;">
+        <div class="title-container">
+            <textarea id="title-input" rows="1" oninput="autoSizeTitle(this)" onchange="updateTitle(this.value)">TTRPG Tracker</textarea>
         </div>
-        <input type="color" id="theme-picker" onchange="setCustomTheme(this.value)" style="border:none; background:none; cursor:pointer; width:25px; height:25px;">
+        <input type="color" id="theme-picker" onchange="setCustomTheme(this.value)" style="border:none; background:none; cursor:pointer; width:30px; height:30px; flex-shrink: 0;">
     </div>
 
     <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
-      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.4</span>
+      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.5</span>
       <button class="btn-accent" onclick="addUnit()">+ Add Unit</button>
       <button class="btn-ghost" onclick="undoGlobal()">⟲ Undo</button>
       <button class="btn-ghost btn-red" onclick="allToMaxHP()">Max HP All</button>
@@ -211,14 +222,24 @@ function getPos(name) {
 }
 
 // --- THEME & TITLE ---
+function autoSizeTitle(el) {
+    el.style.height = 'auto';
+    el.style.height = el.scrollHeight + 'px';
+}
+
 function updateTitle(v) {
+    const old = state.title;
     state.title = v;
-    log(`Renamed session to "${v}"`);
+    log(`Renamed title: "${old}" \u2192 "${v}"`);
 }
 
 function setGlobalTheme(color) {
+    const old = state.accentColor;
     state.accentColor = color;
     document.documentElement.style.setProperty('--accent', color);
+    if (old !== color) {
+        log(`Changed theme from ${old} \u2192 ${color}`);
+    }
     render();
 }
 
@@ -239,7 +260,7 @@ function allToMaxHP() {
     saveState();
     state.units.forEach(u => {
         if(u.hp !== u.maxHp) {
-            log(`${getPos(u.name)} Current HP: ${u.hp} -> ${u.maxHp} (+${u.maxHp - u.hp} HP)`);
+            log(`${getPos(u.name)} Current HP: ${u.hp} \u2192 ${u.maxHp} (+${u.maxHp - u.hp} HP)`);
             u.hp = u.maxHp;
         }
     });
@@ -248,7 +269,6 @@ function allToMaxHP() {
 
 function generateUrl() {
     const unitData = state.units.map(u => {
-        // Updated Status Serialization: Added Cause at the end
         const effects = u.effects.map(e => `${encodeURIComponent(e.name)}|${e.amount}|${e.duration}|${e.start}|${encodeURIComponent(e.cause)}`).join(':');
         return `${encodeURIComponent(u.name)},${u.hp},${u.maxHp},${u.turn},[${effects}]`;
     }).join(';');
@@ -386,8 +406,8 @@ function renderEffects(i) {
     row.className = `effectRow ${remaining <= 0 ? 'expired' : ''}`;
     row.onclick = () => loadEffectToForm(i, idx);
     row.innerHTML = `<span>${e.name} (${Math.abs(e.amount)} ${e.amount>=0?'HP':'DMG'} for ${remaining} ${plural})</span>
-      <span><span class="duplicate" onclick="event.stopPropagation(); saveState(); duplicateEffect(${i}, ${idx})">⧉</span>
-      <span class="delete" onclick="event.stopPropagation(); saveState(); deleteEffect(${i}, ${idx})">×</span></span>`;
+      <span><span class="duplicate" onclick="event.stopPropagation(); saveState(); duplicateEffect(${i}, ${idx})">\u29C9</span>
+      <span class="delete" onclick="event.stopPropagation(); saveState(); deleteEffect(${i}, ${idx})">\u00D7</span></span>`;
     listDiv.appendChild(row);
   });
 }
@@ -424,11 +444,11 @@ function nextTurn(i) {
         u.hp = Math.max(0, u.hp + e.amount);
         if(e.amount !== 0) {
             const diff = u.hp - oldHP;
-            log(`${getPos(u.name)} Current HP: ${oldHP} -> ${u.hp} (${diff >= 0 ? '+' : ''}${diff} HP from ${e.name})`);
+            log(`${getPos(u.name)} Current HP: ${oldHP} \u2192 ${u.hp} (${diff >= 0 ? '+' : ''}${diff} HP from ${e.name})`);
         }
     }
   });
-  log(`${getPos(u.name)} Turn: ${oldTurn} -> ${u.turn}`);
+  log(`${getPos(u.name)} Turn: ${oldTurn} \u2192 ${u.turn}`);
   render();
 }
 
@@ -438,7 +458,7 @@ function prevTurn(i) {
     saveState();
     const oldTurn = u.turn;
     Object.assign(u, JSON.parse(u.history.pop()));
-    log(`${getPos(u.name)} Turn: ${oldTurn} -> ${u.turn} REVERTED`);
+    log(`${getPos(u.name)} Turn: ${oldTurn} \u2192 ${u.turn} REVERTED`);
     render(); 
   }
 }
@@ -460,13 +480,13 @@ function setName(i, v) { log(`${state.units[i].name} renamed to ${v}`); state.un
 function setHP(i, v) { 
     const val = parseInt(v) || 0;
     const diff = val - state.units[i].hp;
-    log(`${getPos(state.units[i].name)} Current HP: ${state.units[i].hp} -> ${val} (${diff >= 0 ? '+' : ''}${diff} HP)`);
+    log(`${getPos(state.units[i].name)} Current HP: ${state.units[i].hp} \u2192 ${val} (${diff >= 0 ? '+' : ''}${diff} HP)`);
     state.units[i].hp = val; render(); 
 }
 function setMaxHP(i, v) { 
     const val = parseInt(v) || 0;
     const diff = val - state.units[i].maxHp;
-    log(`${getPos(state.units[i].name)} Max HP: ${state.units[i].maxHp} -> ${val} (${diff >= 0 ? '+' : ''}${diff} MAX HP)`);
+    log(`${getPos(state.units[i].name)} Max HP: ${state.units[i].maxHp} \u2192 ${val} (${diff >= 0 ? '+' : ''}${diff} MAX HP)`);
     state.units[i].maxHp = val; render(); 
 }
 function setTurn(i, v) { 
@@ -494,7 +514,7 @@ function updatePreview(i) {
   const v = (parseInt(document.getElementById(`eval-${i}`)?.value) || 0) * u.sign;
   const target = document.getElementById(`preview-${i}`);
   const dur = document.getElementById(`edur-${i}`)?.value || 0;
-  if (target) target.innerText = `${v>=0?"+":""}${v} HP / ${dur} ${dur == 1 ? 'TURN' : 'TURNS'}`;
+  if (target) target.innerText = `\u2192 (${v>=0?"+":""}${v} HP / ${dur} ${dur == 1 ? 'TURN' : 'TURNS'})`;
 }
 
 function loadEffectToForm(i, idx) {
@@ -534,8 +554,14 @@ if (dataString) {
 if (params.get('title')) {
     state.title = params.get('title');
     document.getElementById('title-input').value = state.title;
+    setTimeout(() => autoSizeTitle(document.getElementById('title-input')), 50);
 }
-if (params.get('color')) setGlobalTheme('#' + params.get('color'));
+if (params.get('color')) {
+    const c = '#' + params.get('color');
+    state.accentColor = c;
+    state.customColor = c;
+    document.documentElement.style.setProperty('--accent', c);
+}
 
 render();
 </script>
