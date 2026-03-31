@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>TTRPG Tracker v6.2.0.e</title>
+<title>TTRPG Tracker v6.2.3.f</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -22,217 +22,304 @@ body {
   overflow: hidden;
 }
 
-#main {
-  flex: 1;
-  padding: 10px;
-  overflow-y: auto;
-}
+#main { flex: 1; padding: 10px; overflow-y: auto; position: relative; }
 
-#log {
-  width: 300px; 
-  background: #000;
-  padding: 15px;
-  border-left: 3px solid var(--accent);
-  overflow-y: auto;
-  resize: horizontal;
-}
-
-/* SLIM UNIT HEADER */
-.unit {
-  margin-bottom: 6px;
-  padding: 6px 10px;
-  border-radius: 6px;
+#log { 
+  width: 320px; 
+  background: #000; 
+  padding: 15px; 
+  border-left: 3px solid var(--accent); 
+  overflow-y: auto; 
   display: flex;
   flex-direction: column;
-  border-left: 4px solid var(--accent);
 }
 
-.unit-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+/* Stealth Title Editor */
+#title-input {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.5em;
+    font-weight: bold;
+    outline: none;
+    width: auto;
+    min-width: 200px;
+    cursor: pointer;
+}
+#title-input:focus { cursor: text; border-bottom: 1px dashed rgba(255,255,255,0.2); }
+
+.unit { margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; display: flex; flex-direction: column; border-left: 4px solid var(--accent); cursor: grab; }
+.unit.dragging { opacity: 0.1; }
+
+.drop-indicator {
+  height: 6px;
+  margin: 4px 0;
+  border: 2px dashed var(--accent);
+  border-radius: 4px;
+  display: none;
+  background: rgba(223, 118, 121, 0.1);
 }
 
-.unit-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-}
+.unit-header { display: flex; justify-content: space-between; align-items: center; pointer-events: none; }
+.unit-header input, .unit-header span, .unit-header button { pointer-events: auto; }
 
-.unit-info input {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  color: white;
-  font-family: 'Fredoka', sans-serif;
-  font-size: 0.95em;
-}
+.unit-info { display: flex; align-items: center; gap: 8px; flex: 1; }
+.unit-info input { background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.1); color: white; font-family: 'Fredoka', sans-serif; font-size: 0.95em; }
 
-.hp-input { width: 38px; text-align: center; color: var(--accent) !important; font-weight: bold; }
+.hp-input { width: 80px; text-align: center; color: var(--accent) !important; font-weight: bold; }
 .name-input { font-weight: 500; width: 130px; }
 
-.panel {
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 6px;
-  background: var(--panel-bg);
-  border: 1px solid #333;
-}
+.panel { margin-top: 8px; padding: 10px; border-radius: 6px; background: var(--panel-bg); border: 1px solid #333; }
+.turn-controls { display: flex; align-items: center; gap: 4px; }
+.turnBox { width: 35px; text-align: center; background: #111; border: 1px solid #444; color: white; border-radius: 4px; font-size: 0.85em; }
+.btn-small { padding: 2px 6px; font-size: 0.7em; }
 
-.turn-controls {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+.log-entry { border-bottom: 1px solid #222; padding: 8px 5px; font-size: 0.8em; cursor: pointer; transition: 0.2s; position: relative; line-height: 1.4; }
+.log-entry:hover { background: #111; color: var(--accent); }
+.log-entry:hover::after { content: '✕'; position: absolute; right: 10px; opacity: 0.5; }
 
-.turnBox {
-  width: 30px;
-  text-align: center;
-  background: #111;
-  border: 1px solid #444;
-  color: white;
-  border-radius: 4px;
-  font-size: 0.85em;
-}
+.effectRow { display: flex; justify-content: space-between; padding: 6px; background: rgba(255,255,255,0.03); margin-bottom: 4px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+.expired { text-decoration: line-through; opacity: 0.4; background: transparent; border: 1px dashed #444; }
+.switch-btn { width: 35px; height: 35px; font-weight: bold; background: var(--secondary); border: 1px solid #333; color: white; cursor: pointer; }
 
-.btn-small {
-  padding: 2px 6px;
-  font-size: 0.7em;
-}
-
-/* EFFECTS LIST */
-.effectRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px;
-  background: rgba(255,255,255,0.03);
-  margin-bottom: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.85em;
-}
-
-.expired {
-  text-decoration: line-through;
-  opacity: 0.4;
-  background: transparent;
-  border: 1px dashed #444;
-}
-
-.switch-btn {
-  width: 35px;
-  height: 35px;
-  font-weight: bold;
-  background: var(--secondary);
-}
-
-.section-title {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 6px;
-  font-size: 0.75em;
-  color: var(--accent);
-  text-transform: uppercase;
-}
-
+.section-title { display: block; font-weight: 500; margin-bottom: 6px; font-size: 0.75em; color: var(--accent); text-transform: uppercase; }
 .row-1 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .row-2 { display: flex; gap: 8px; align-items: center; }
 .row-2 input { flex: 1; }
 
-input, button {
-  background: #111;
-  color: white;
-  border: 1px solid #333;
-  padding: 6px;
-  border-radius: 4px;
-  font-family: 'Fredoka', sans-serif;
-}
-
+input, button { background: #111; color: white; border: 1px solid #333; padding: 6px; border-radius: 4px; font-family: 'Fredoka', sans-serif; }
+button { cursor: pointer; }
 button:hover { border-color: var(--accent); }
+
+.btn-ghost { background: transparent; border: 1px solid #444; color: #aaa; font-size: 0.8em; padding: 4px 10px; }
+.btn-red { border-color: #ff5e5e; color: #ff5e5e; background: rgba(255, 94, 94, 0.1); }
+.btn-accent { background: var(--accent); color: #000; font-weight: 600; border: none; padding: 4px 10px; }
+
+/* Notification GUI */
+#toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.85);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 50px;
+    font-size: 1.2em;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+    border: 1px solid var(--accent);
+}
 
 .delete { color: #ff5e5e; cursor: pointer; margin-left: 8px; }
 .duplicate { color: #5ea3ff; cursor: pointer; margin-left: 8px; }
-
-.preview-area {
-  margin-top: 4px;
-  color: #777;
-  font-size: 0.8em;
-  font-style: italic;
-}
+.preview-area { margin-top: 4px; color: #777; font-size: 0.8em; font-style: italic; }
 </style>
 </head>
-
 <body>
 
   <div id="main">
-    <h1 id="title-header" style="margin: 0 0 10px 0; color: var(--accent); cursor:pointer; font-size: 1.5em;" onclick="toggleTheme()">TTRPG Tracker</h1>
-    <div style="margin-bottom:10px; display:flex; align-items:center; gap:10px;">
-      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.0.e</span>
-      <button onclick="addUnit()" style="background: var(--accent); color: #000; font-weight: 600; border:none; padding: 4px 10px;">+ Add Unit</button>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <input id="title-input" value="TTRPG Tracker" onchange="updateTitle(this.value)">
+        </div>
+        <input type="color" id="theme-picker" onchange="setCustomTheme(this.value)" style="border:none; background:none; cursor:pointer; width:25px; height:25px;">
+    </div>
+
+    <div style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+      <span style="font-size: 0.7em; opacity: 0.5;">v6.2.3.f</span>
+      <button class="btn-accent" onclick="addUnit()">+ Add Unit</button>
+      <button class="btn-ghost" onclick="undoGlobal()">⟲ Undo</button>
+      <button class="btn-ghost btn-red" onclick="allToMaxHP()">Max HP All</button>
+      <button class="btn-ghost" onclick="generateUrl()">🔗 Share Link</button>
     </div>
     <div id="units"></div>
   </div>
 
   <div id="log">
-    <h3 style="margin-top: 0; color: var(--accent); font-size: 1.1em;">History</h3>
-    <div id="log-list"></div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h3 id="history-header" style="margin: 0; color: var(--accent); font-size: 1.1em; cursor: pointer;" onclick="cycleTheme()">History</h3>
+        <button class="btn-ghost btn-red" style="font-size: 0.7em;" onclick="clearLog()">Clear</button>
+    </div>
+    <div id="log-list" style="flex:1;"></div>
+    <button class="btn-ghost" style="margin-top:10px; width:100%" onclick="undoLogAction()">⟲ Undo Log Delete</button>
   </div>
 
+  <div id="toast">Link Copied!</div>
+
 <script>
-let state = {
-  units: [],
-  log: [],
-  theme: 'coral'
+let state = { 
+    units: [], 
+    log: [], 
+    accentColor: '#df7679',
+    customColor: '#df7679',
+    themeStep: 0,
+    title: 'TTRPG Tracker',
+    historyStack: [],
+    logHistoryStack: []
 };
 
-function toggleTheme() {
-    state.theme = state.theme === 'coral' ? 'blue' : 'coral';
-    const color = state.theme === 'blue' ? '#0fb1f5' : '#df7679';
+// --- CORE UTILS ---
+function saveState() {
+    state.historyStack.push(JSON.stringify(state.units));
+    if (state.historyStack.length > 40) state.historyStack.shift();
+}
+
+function log(text) { 
+    state.log.push({ id: Date.now() + Math.random(), msg: text });
+    renderLog(); 
+}
+
+function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.innerText = msg;
+    t.style.opacity = "1";
+    setTimeout(() => { t.style.opacity = "0"; }, 4000); // Start fading after 4s
+}
+
+function undoGlobal() {
+    if (state.historyStack.length > 0) {
+        state.units = JSON.parse(state.historyStack.pop());
+        log("Global Undo performed.");
+        render();
+    }
+}
+
+function saveLogState() {
+    state.logHistoryStack.push(JSON.stringify(state.log));
+    if (state.logHistoryStack.length > 10) state.logHistoryStack.shift();
+}
+
+function undoLogAction() {
+    if (state.logHistoryStack.length > 0) {
+        state.log = JSON.parse(state.logHistoryStack.pop());
+        renderLog();
+    }
+}
+
+function clearLog() {
+    saveLogState();
+    state.log = [];
+    renderLog();
+}
+
+function getPos(name) {
+    return name.endsWith('s') ? name + "'" : name + "'s";
+}
+
+// --- THEME & TITLE ---
+function updateTitle(v) {
+    state.title = v;
+    log(`Renamed session to "${v}"`);
+}
+
+function setGlobalTheme(color) {
+    state.accentColor = color;
     document.documentElement.style.setProperty('--accent', color);
     render();
 }
 
-function log(text) {
-  state.log.push(text);
-  renderLog();
+function setCustomTheme(color) {
+    state.customColor = color;
+    state.themeStep = 0;
+    setGlobalTheme(color);
+}
+
+function cycleTheme() {
+    const sequence = [state.customColor, '#df7679', '#0fb1f5'];
+    state.themeStep = (state.themeStep + 1) % sequence.length;
+    setGlobalTheme(sequence[state.themeStep]);
+}
+
+// --- ACTIONS ---
+function allToMaxHP() {
+    saveState();
+    state.units.forEach(u => {
+        if(u.hp !== u.maxHp) {
+            log(`${getPos(u.name)} Current HP: ${u.hp} -> ${u.maxHp} (+${u.maxHp - u.hp} HP)`);
+            u.hp = u.maxHp;
+        }
+    });
+    render();
+}
+
+function generateUrl() {
+    const unitData = state.units.map(u => {
+        const effects = u.effects.map(e => `${encodeURIComponent(e.name)}|${e.amount}|${e.duration}|${e.start}`).join(':');
+        return `${encodeURIComponent(u.name)},${u.hp},${u.maxHp},${u.turn},[${effects}]`;
+    }).join(';');
+    
+    const url = new URL(window.location.href);
+    url.searchParams.set('data', unitData);
+    url.searchParams.set('title', state.title);
+    url.searchParams.set('color', state.accentColor.replace('#', ''));
+    
+    navigator.clipboard.writeText(url.href);
+    showToast(`${state.title} link copied!`);
 }
 
 function addUnit() {
+  saveState();
   state.units.push({
     name: "New Unit", hp: 20, maxHp: 20, turn: 0, history: [], effects: [],
     open: false, color: "#252525", panelColor: "#1a1a1a", sign: -1
   });
+  log("Added a new unit.");
   render();
 }
+
+// --- RENDER & DRAG ---
+let dragIdx = null;
 
 function render() {
   const container = document.getElementById("units");
   container.innerHTML = "";
-
+  
   state.units.forEach((u, i) => {
+    const indicator = document.createElement("div");
+    indicator.className = "drop-indicator";
+    indicator.id = `ind-${i}`;
+    container.appendChild(indicator);
+
     const div = document.createElement("div");
     div.className = "unit";
     div.style.backgroundColor = u.color;
+    div.draggable = true;
+    div.ondragstart = (e) => { dragIdx = i; setTimeout(() => div.classList.add('dragging'), 0); };
+    div.ondragover = (e) => {
+        e.preventDefault();
+        if (i !== dragIdx && i !== dragIdx + 1) indicator.style.display = 'block';
+    };
+    div.ondragleave = () => indicator.style.display = 'none';
+    div.ondrop = (e) => {
+        e.preventDefault();
+        if (i !== dragIdx && i !== dragIdx + 1) handleDrop(i);
+    };
+    div.ondragend = () => {
+        dragIdx = null;
+        div.classList.remove('dragging');
+        document.querySelectorAll('.drop-indicator').forEach(el => el.style.display = 'none');
+    };
 
     div.innerHTML = `
       <div class="unit-header">
         <div class="unit-info">
           <span onclick="toggleOpen(${i})" style="cursor:pointer; width: 20px;">${u.open ? "▼" : "▶"}</span>
-          <input class="name-input" value="${u.name}" onchange="setName(${i}, this.value)">
-          <input class="hp-input" type="number" value="${u.hp}" onchange="setHP(${i}, this.value)">
+          <input class="name-input" value="${u.name}" onchange="saveState(); setName(${i}, this.value)">
+          <input class="hp-input" type="number" value="${u.hp}" onchange="saveState(); setHP(${i}, this.value)">
           <span style="opacity:0.3">/</span>
-          <input class="hp-input" type="number" value="${u.maxHp}" onchange="setMaxHP(${i}, this.value)">
+          <input class="hp-input" type="number" value="${u.maxHp}" onchange="saveState(); setMaxHP(${i}, this.value)">
         </div>
         <div class="turn-controls">
             <button class="btn-small" onclick="nextTurn(${i})">▲</button>
-            <input class="turnBox" type="number" value="${u.turn}" onchange="setTurn(${i}, this.value)">
+            <input class="turnBox" type="number" value="${u.turn}" onchange="saveState(); setTurn(${i}, this.value)">
             <button class="btn-small" onclick="prevTurn(${i})">▼</button>
-            <div style="cursor:grab; color:#555; margin-left:5px;" draggable="true" ondragstart="drag(${i}, event)">||</div>
         </div>
       </div>
     `;
-
     if (u.open) {
       const panel = document.createElement("div");
       panel.className = "panel";
@@ -240,7 +327,6 @@ function render() {
       panel.innerHTML = `
         <span class="section-title">Active Status Effects</span>
         <div id="effects-list-${i}"></div>
-
         <div style="margin-top:15px; border-top: 1px solid #333; padding-top:10px;">
           <span class="section-title">Add Status Effect</span>
           <div class="row-1">
@@ -248,61 +334,72 @@ function render() {
             <input id="ecause-${i}" placeholder="Cause" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'eval-${i}')">
           </div>
           <div class="row-2">
-            <button id="esign-${i}" class="switch-btn" onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
+            <button class="switch-btn" onclick="toggleSign(${i})">${u.sign === 1 ? "+" : "-"}</button>
             <input id="eval-${i}" type="number" placeholder="Value" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'edur-${i}')">
             <input id="edur-${i}" type="number" placeholder="Turns" oninput="updatePreview(${i})" onkeydown="handleEnter(event, 'apply-${i}')">
           </div>
           <button id="apply-${i}" onclick="applyEffect(${i})" style="width:100%; margin-top:8px; background: var(--accent); color:#000; font-weight:600; border:none;">Apply</button>
           <div class="preview-area" id="preview-${i}">... (+0 HP / 0 turns)</div>
         </div>
-
-        <div style="display:flex; justify-content:space-between; margin-top:15px;">
-           <div style="display:flex; gap:5px;"><input type="color" value="${u.color}" onchange="setColor(${i}, this.value)"><input type="color" value="${u.panelColor}" onchange="setPanelColor(${i}, this.value)"></div>
-           <div><button onclick="duplicateUnit(${i})">Clone</button><button onclick="deleteUnit(${i})" style="color:#ff5e5e">Delete</button></div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:15px;">
+           <div style="display:flex; gap:5px;"><input type="color" value="${u.color}" onchange="saveState(); setColor(${i}, this.value)"><input type="color" value="${u.panelColor}" onchange="saveState(); setPanelColor(${i}, this.value)"></div>
+           <div><button onclick="saveState(); duplicateUnit(${i})">Clone</button><button onclick="saveState(); deleteUnit(${i})" style="color:#ff5e5e">Delete</button></div>
         </div>
       `;
       div.appendChild(panel);
     }
     container.appendChild(div);
+
+    if (i === state.units.length - 1) {
+        const lastInd = document.createElement("div");
+        lastInd.className = "drop-indicator";
+        lastInd.ondragover = (e) => { e.preventDefault(); if (dragIdx !== i) lastInd.style.display = 'block'; };
+        lastInd.ondragleave = () => lastInd.style.display = 'none';
+        lastInd.ondrop = (e) => { e.preventDefault(); if (dragIdx !== i) handleDrop(i + 1); };
+        container.appendChild(lastInd);
+    }
+
     if(u.open) renderEffects(i); 
   });
   renderLog();
 }
 
+function handleDrop(targetIdx) {
+    saveState();
+    const movedUnit = state.units.splice(dragIdx, 1)[0];
+    const adjustedIdx = targetIdx > dragIdx ? targetIdx - 1 : targetIdx;
+    state.units.splice(adjustedIdx, 0, movedUnit);
+    render();
+}
+
+// --- EFFECT LOGIC ---
 function renderEffects(i) {
   const u = state.units[i];
   const listDiv = document.getElementById(`effects-list-${i}`);
   if (!listDiv) return;
-  listDiv.innerHTML = ""; 
-
+  listDiv.innerHTML = u.effects.length === 0 ? "<div style='opacity:0.3; font-size:0.8em;'>No effects.</div>" : ""; 
   u.effects.forEach((e, idx) => {
     const remaining = (e.start + e.duration) - u.turn;
-    const isExpired = remaining <= 0;
-    const typeLabel = e.amount >= 0 ? 'HP' : 'DMG';
-    
+    const plural = Math.abs(remaining) === 1 ? "TURN" : "TURNS";
     const row = document.createElement("div");
-    row.className = `effectRow ${isExpired ? 'expired' : ''}`;
+    row.className = `effectRow ${remaining <= 0 ? 'expired' : ''}`;
     row.onclick = () => loadEffectToForm(i, idx);
-    row.innerHTML = `
-      <span>${e.name} (${Math.abs(e.amount)} ${typeLabel} for ${remaining} TURNS)</span>
-      <span>
-        <span class="duplicate" onclick="event.stopPropagation(); duplicateEffect(${i}, ${idx})">⧉</span>
-        <span class="delete" onclick="event.stopPropagation(); deleteEffect(${i}, ${idx})">×</span>
-      </span>
-    `;
+    row.innerHTML = `<span>${e.name} (${Math.abs(e.amount)} ${e.amount>=0?'HP':'DMG'} for ${remaining} ${plural})</span>
+      <span><span class="duplicate" onclick="event.stopPropagation(); saveState(); duplicateEffect(${i}, ${idx})">⧉</span>
+      <span class="delete" onclick="event.stopPropagation(); saveState(); deleteEffect(${i}, ${idx})">×</span></span>`;
     listDiv.appendChild(row);
   });
 }
 
 function applyEffect(i) {
+  saveState();
   const u = state.units[i];
   const n = document.getElementById(`ename-${i}`).value || "Effect";
   const c = document.getElementById(`ecause-${i}`).value || "Someone";
   const v = (parseInt(document.getElementById(`eval-${i}`).value) || 0) * u.sign;
   const d = parseInt(document.getElementById(`edur-${i}`).value) || 0;
-
   u.effects.push({ name: n, cause: c, amount: v, duration: d, start: u.turn });
-  log(`${c} inflicted ${n} on ${u.name}. (${Math.abs(v)} ${v>=0?'HP':'DMG'} for ${d} TURNS)`);
+  log(`${c} inflicted ${n} on ${u.name}.`);
   render();
 }
 
@@ -315,63 +412,125 @@ function handleEnter(e, nextId) {
 }
 
 function nextTurn(i) {
+  saveState();
   const u = state.units[i];
   u.history.push(JSON.stringify({hp: u.hp, turn: u.turn, effects: [...u.effects.map(e => ({...e}))]}));
+  const oldTurn = u.turn;
   u.turn++;
   u.effects.forEach(e => {
-    if (u.turn > e.start && u.turn <= (e.start + e.duration)) u.hp = Math.max(0, u.hp + e.amount);
+    if (u.turn > e.start && u.turn <= (e.start + e.duration)) {
+        const oldHP = u.hp;
+        u.hp = Math.max(0, u.hp + e.amount);
+        if(e.amount !== 0) {
+            const diff = u.hp - oldHP;
+            log(`${getPos(u.name)} Current HP: ${oldHP} -> ${u.hp} (${diff >= 0 ? '+' : ''}${diff} HP from ${e.name})`);
+        }
+    }
   });
-  log(`${u.name} → Turn ${u.turn}`);
+  log(`${getPos(u.name)} Turn: ${oldTurn} -> ${u.turn}`);
   render();
 }
 
 function prevTurn(i) {
   const u = state.units[i];
-  if (u.history.length > 0) { Object.assign(u, JSON.parse(u.history.pop())); render(); }
+  if (u.history.length > 0) { 
+    saveState();
+    const oldTurn = u.turn;
+    Object.assign(u, JSON.parse(u.history.pop()));
+    log(`${getPos(u.name)} Turn: ${oldTurn} -> ${u.turn} REVERTED`);
+    render(); 
+  }
 }
 
-function toggleOpen(i) { state.units[i].open = !state.units[i].open; render(); }
-function toggleSign(i) { state.units[i].sign *= -1; render(); }
-function updatePreview(i) {
-  const u = state.units[i];
-  const n = document.getElementById(`ename-${i}`)?.value || "...";
-  const v = (parseInt(document.getElementById(`eval-${i}`)?.value) || 0) * u.sign;
-  const d = document.getElementById(`edur-${i}`)?.value || 0;
-  const target = document.getElementById(`preview-${i}`);
-  if (target) target.innerText = `${n} (${v>=0?"+":""}${v} ${v>=0?'HP':'DMG'} / ${d} turns)`;
+function renderLog() {
+  const logBox = document.getElementById("log-list");
+  logBox.innerHTML = "";
+  state.log.slice().reverse().forEach(entry => {
+    const div = document.createElement("div");
+    div.className = "log-entry";
+    div.innerText = entry.msg;
+    div.onclick = () => { saveLogState(); state.log = state.log.filter(e => e.id !== entry.id); renderLog(); };
+    logBox.appendChild(div);
+  });
 }
 
-function setName(i, v) { state.units[i].name = v; }
-function setHP(i, v) { state.units[i].hp = parseInt(v) || 0; render(); }
-function setMaxHP(i, v) { state.units[i].maxHp = parseInt(v) || 0; render(); }
-function setTurn(i, v) { state.units[i].turn = parseInt(v) || 0; render(); }
+// Setters
+function setName(i, v) { log(`${state.units[i].name} renamed to ${v}`); state.units[i].name = v; }
+function setHP(i, v) { 
+    const val = parseInt(v) || 0;
+    const diff = val - state.units[i].hp;
+    log(`${getPos(state.units[i].name)} Current HP: ${state.units[i].hp} -> ${val} (${diff >= 0 ? '+' : ''}${diff} HP)`);
+    state.units[i].hp = val; render(); 
+}
+function setMaxHP(i, v) { 
+    const val = parseInt(v) || 0;
+    const diff = val - state.units[i].maxHp;
+    log(`${getPos(state.units[i].name)} Max HP: ${state.units[i].maxHp} -> ${val} (${diff >= 0 ? '+' : ''}${diff} MAX HP)`);
+    state.units[i].maxHp = val; render(); 
+}
+function setTurn(i, v) { 
+    const val = parseInt(v) || 0;
+    log(`${getPos(state.units[i].name)} Turn set to ${val}`);
+    state.units[i].turn = val; render(); 
+}
 function setColor(i, v) { state.units[i].color = v; render(); }
 function setPanelColor(i, v) { state.units[i].panelColor = v; render(); }
 function deleteEffect(i, ei) { state.units[i].effects.splice(ei, 1); render(); }
 function duplicateEffect(i, ei) { state.units[i].effects.push({...state.units[i].effects[ei], start: state.units[i].turn}); render(); }
-function deleteUnit(i) { state.units.splice(i, 1); render(); }
-function duplicateUnit(i) { state.units.push(JSON.parse(JSON.stringify(state.units[i]))); render(); }
-function drag(i, e) { e.dataTransfer.setData("idx", i); }
-function drop(i, e) {
-  const from = e.dataTransfer.getData("idx");
-  const moved = state.units.splice(from, 1)[0];
-  state.units.splice(i, 0, moved);
-  render();
+function deleteUnit(i) { log(`Deleted ${state.units[i].name}`); state.units.splice(i, 1); render(); }
+function duplicateUnit(i) { 
+    log(`Cloned ${state.units[i].name}`); 
+    const clone = JSON.parse(JSON.stringify(state.units[i]));
+    clone.open = false; // Closed by default as per request
+    state.units.push(clone); 
+    render(); 
 }
-function renderLog() {
-  const logBox = document.getElementById("log-list");
-  logBox.innerHTML = state.log.slice().reverse().map(l => `<div style="border-bottom:1px solid #222; padding:5px; font-size:0.8em;">${l}</div>`).join("");
+function toggleOpen(i) { state.units[i].open = !state.units[i].open; render(); }
+function toggleSign(i) { state.units[i].sign *= -1; render(); }
+
+function updatePreview(i) {
+  const u = state.units[i];
+  const v = (parseInt(document.getElementById(`eval-${i}`)?.value) || 0) * u.sign;
+  const target = document.getElementById(`preview-${i}`);
+  const dur = document.getElementById(`edur-${i}`)?.value || 0;
+  if (target) target.innerText = `${v>=0?"+":""}${v} HP / ${dur} ${dur == 1 ? 'TURN' : 'TURNS'}`;
 }
+
 function loadEffectToForm(i, idx) {
-  const u = state.units[i]; const e = u.effects[idx];
+  const e = state.units[i].effects[idx];
   document.getElementById(`ename-${i}`).value = e.name;
   document.getElementById(`ecause-${i}`).value = e.cause;
   document.getElementById(`eval-${i}`).value = Math.abs(e.amount);
   document.getElementById(`edur-${i}`).value = e.duration;
-  u.sign = e.amount >= 0 ? 1 : -1;
+  state.units[i].sign = e.amount >= 0 ? 1 : -1;
   render();
 }
-addUnit();
+
+// Initial Load Logic
+const params = new URLSearchParams(window.location.search);
+const dataString = params.get('data');
+if (dataString) {
+    dataString.split(';').forEach(unitStr => {
+        const [meta, effectsStr] = unitStr.split(',[');
+        const [n, h, m, t] = meta.split(',');
+        const effects = [];
+        if (effectsStr) {
+            effectsStr.replace(']', '').split(':').forEach(eStr => {
+                const [en, ea, ed, es] = eStr.split('|');
+                if(en) effects.push({ name: decodeURIComponent(en), amount: parseInt(ea), duration: parseInt(ed), start: parseInt(es) });
+            });
+        }
+        state.units.push({ name: decodeURIComponent(n), hp: parseInt(h), maxHp: parseInt(m), turn: parseInt(t), history: [], effects: effects, open: false, color: "#252525", panelColor: "#1a1a1a", sign: -1 });
+    });
+} else { addUnit(); }
+
+if (params.get('title')) {
+    state.title = params.get('title');
+    document.getElementById('title-input').value = state.title;
+}
+if (params.get('color')) setGlobalTheme('#' + params.get('color'));
+
+render();
 </script>
 </body>
 </html>
